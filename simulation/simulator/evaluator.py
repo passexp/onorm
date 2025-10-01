@@ -53,6 +53,8 @@ class Evaluator(metaclass=ABCMeta):
             time_end = time.time()
             time_elapsed = time_end - time_start
             self.log(model.name, "elapsed_time", time_elapsed)
-            self.log(model.name, "treatment_imbalance", self.treatment_imbalance(A, model.assigner.q))
+            self.log(
+                model.name, "treatment_imbalance", self.treatment_imbalance(A, model.assigner.q)
+            )
             self.log(model.name, "imbalance", self.imbalance(A, self.xdgp.X))
             self.log(model.name, "causal_error", self.causal_error(Y, A, self.ydgp.ATE))

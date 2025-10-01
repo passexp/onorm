@@ -1,5 +1,4 @@
 import pytest
-
 from onorm import Normalizer
 
 

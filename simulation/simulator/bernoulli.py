@@ -4,7 +4,7 @@ import numpy as np
 
 
 class Bernoulli(metaclass=ABCMeta):
-    def __init__(self, q = 0.5, **kwargs):
+    def __init__(self, q=0.5, **kwargs):
         self.q = q
 
     def assign_next(self, x):

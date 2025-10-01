@@ -91,6 +91,7 @@ class MultivariateNormalizer(Normalizer):
         return (self.invsqrtSigmahat @ (x - self.muhat)).reshape(-1)
 
     def reset(self):
+        self.n = 0
         self.muhat = np.array([0.0] * self.n_dim)
         self.invSigmahat = np.eye(self.n_dim, dtype=np.float64) * np.finfo(np.float64).max
         self.invsqrtSigmahat = np.eye(self.n_dim, dtype=np.float64)
