@@ -10,17 +10,18 @@ class XDGP(metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def X(self):
+    def X(self) -> np.ndarray:
         pass
 
 
 class YDGP(metaclass=ABCMeta):
     @abstractmethod
     def setup(self, X):
-        pass
+        self.d = X.shape[1]
+        self.n = X.shape[0]
 
     @abstractmethod
-    def Y(self, A):
+    def Y(self, A) -> np.ndarray:
         pass
 
     @abstractmethod

@@ -37,6 +37,9 @@ class Evaluator(metaclass=ABCMeta):
     def causal_error(self, Y, A, ATE):
         return (np.average(Y, weights=A) - np.average(Y, weights=1 - A)) - ATE
 
+    def treatment_imbalance(self, A, pr):
+        return np.average(A) - pr
+
     def evaluate(self) -> None:
         for model in self.models:
             model.reset()
@@ -50,5 +53,6 @@ class Evaluator(metaclass=ABCMeta):
             time_end = time.time()
             time_elapsed = time_end - time_start
             self.log(model.name, "elapsed_time", time_elapsed)
+            self.log(model.name, "treatment_imbalance", self.treatment_imbalance(A, model.assigner.q))
             self.log(model.name, "imbalance", self.imbalance(A, self.xdgp.X))
             self.log(model.name, "causal_error", self.causal_error(Y, A, self.ydgp.ATE))
