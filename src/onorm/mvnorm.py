@@ -1,69 +1,24 @@
 import numpy as np
-from scipy.linalg import cholesky
+from scipy.linalg import cholesky, inv
 
 from .normalization_base import Normalizer
 
 
-def downdate_cholesky(R: np.ndarray, x: np.ndarray) -> np.ndarray:
-    """
-    Perform Cholesky downdate (rank-one downdate of Cholesky factorization).
-
-    Given a Cholesky factor R such that R^T R = A, computes the updated
-    Cholesky factor R' such that R'^T R' = A - xx^T.
-
-    Parameters
-    ----------
-    R : np.ndarray
-        Upper triangular Cholesky factor, shape (p, p).
-    x : np.ndarray
-        Vector for rank-one downdate, shape (p,).
-
-    Returns
-    -------
-    np.ndarray
-        Updated Cholesky factor R', shape (p, p).
-
-    Notes
-    -----
-    This function modifies R in-place and also modifies x during computation.
-    The algorithm uses Givens rotations to maintain the triangular structure.
-
-    References
-    ----------
-    Gill, Golub, Murray, and Saunders (1974). Methods for modifying matrix
-    factorizations. Mathematics of Computation, 28(126), 505-535.
-    """
-    p = np.size(x)
-    for k in range(p):
-        r = np.sqrt(np.power(R[k, k], 2) - np.power(x[k], 2))
-        c = r / R[k, k].item()
-        s = (x[k] / R[k, k]).item()
-        R[k, k] = r
-        for i in range(k + 1, p):
-            R[k, i] = (R[k, i] - s * x[i]) / c
-            x[i] = c * x[i] - s * R[k, i]
-    return R
-
-
 class MultivariateNormalizer(Normalizer):
     """
-    Online multivariate normalization using inverse covariance matrix estimation.
+    Online multivariate normalization using covariance matrix estimation.
 
     This normalizer transforms multivariate data to have zero mean, unit variance,
-    and zero correlation (decorrelation). It uses online estimation of the inverse
-    covariance matrix via rank-one updates to Cholesky decomposition, achieving
-    O(d²) time complexity per observation.
+    and zero correlation (decorrelation). It uses online estimation of the
+    covariance matrix and computes the inverse square root for transformation.
 
-    The transformation is: Σ^(-1/2) (x - μ)
-    where μ is the mean and Σ is the covariance matrix.
+    The transformation is: Σ^(-1/2) @ (x - μ)
+    where μ is the estimated mean and Σ is the estimated covariance matrix.
 
     Parameters
     ----------
     n_dim : int
         Number of dimensions/features in the data.
-    warmup_period : int
-        Number of initial observations before switching to efficient Cholesky
-        updates. During warmup, full Cholesky decomposition is computed.
 
     Attributes
     ----------
@@ -71,16 +26,16 @@ class MultivariateNormalizer(Normalizer):
         Number of observations seen so far.
     muhat : np.ndarray
         Estimated mean vector, shape (n_dim,).
-    invSigmahat : np.ndarray
-        Estimated inverse covariance matrix, shape (n_dim, n_dim).
+    Sigmahat : np.ndarray
+        Estimated covariance matrix (computed from _M), shape (n_dim, n_dim).
     invsqrtSigmahat : np.ndarray
-        Cholesky factor of inverse covariance (Σ^(-1/2)), shape (n_dim, n_dim).
+        Inverse square root of covariance matrix (Σ^(-1/2)), shape (n_dim, n_dim).
 
     Examples
     --------
     >>> from onorm import MultivariateNormalizer
     >>> import numpy as np
-    >>> normalizer = MultivariateNormalizer(n_dim=3, warmup_period=10)
+    >>> normalizer = MultivariateNormalizer(n_dim=3)
     >>> # Generate correlated data
     >>> cov = np.array([[1, 0.5, 0.3], [0.5, 1, 0.4], [0.3, 0.4, 1]])
     >>> X = np.random.multivariate_normal([0, 0, 0], cov, size=100)
@@ -88,33 +43,31 @@ class MultivariateNormalizer(Normalizer):
     ...     normalizer.partial_fit(x)
     >>> x_new = np.array([1.0, 1.0, 1.0])
     >>> x_normalized = normalizer.transform(x_new.copy())
-    >>> # x_normalized will be decorrelated
+    >>> # x_normalized will be decorrelated with zero mean and unit variance
 
     Notes
     -----
-    - Time complexity: O(d²) per observation for both fitting and transformation
+    - Time complexity: O(d²) per observation for fitting, O(d²) for transformation
     - Space complexity: O(d²) for storing covariance matrix
-    - WARNING: Current implementation has a critical bug with invSigmahat
-      initialization using max float values, causing numerical overflow. This
-      class may not function correctly until fixed.
+    - The covariance matrix is computed using Welford's online algorithm
+    - Transformation uses Cholesky decomposition of the inverse covariance
 
     References
     ----------
-    Rank-one updates to Cholesky decomposition:
-    https://en.wikipedia.org/wiki/Cholesky_decomposition#Rank-one_update
+    Welford's online algorithm:
+    https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
     """
 
-    def __init__(self, n_dim: int, warmup_period: int) -> None:
+    def __init__(self, n_dim: int) -> None:
         self.n_dim = n_dim
-        self.warmup_period = warmup_period
         self.reset()
 
     def partial_fit(self, x: np.ndarray) -> None:
         """
-        Update mean and inverse covariance estimates with a new observation.
+        Update mean and covariance estimates with a new observation.
 
-        Uses rank-one update formulas to incrementally update the inverse
-        covariance matrix and its Cholesky decomposition.
+        Uses Welford's online algorithm to incrementally update the mean
+        and covariance matrix.
 
         Parameters
         ----------
@@ -123,36 +76,62 @@ class MultivariateNormalizer(Normalizer):
 
         References
         ----------
-        https://en.wikipedia.org/wiki/Cholesky_decomposition#Rank-one_update
+        https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
         """
         delta = x - self.muhat
         self.n += 1
         self._update_muhat(delta)
-        self._update_invSigmahat(delta)
-        self._update_invsqrtSigmahat(delta)
+        self._update_Sigmahat(delta)
 
     def _update_muhat(self, delta: np.ndarray) -> None:
-        """Update running mean estimate."""
+        """Update running mean estimate using Welford's algorithm."""
         self.muhat += delta / self.n
 
-    def _update_invSigmahat(self, delta: np.ndarray) -> None:
-        """Update inverse covariance matrix using Sherman-Morrison formula."""
-        frac = (self.n - 1) / self.n
-        Mnum = frac * (self.invSigmahat @ delta) @ (delta @ self.invSigmahat)
-        Mden = 1.0 + frac * delta @ self.invSigmahat @ delta
-        self.invSigmahat = self.invSigmahat - Mnum / Mden.item()
+    def _update_Sigmahat(self, delta: np.ndarray) -> None:
+        """
+        Update covariance matrix using Welford's algorithm.
 
-    def _update_invsqrtSigmahat(self, delta: np.ndarray) -> None:
-        """Update Cholesky factor of inverse covariance."""
-        if self.n < self.warmup_period:
-            cholesky(self.invSigmahat, check_finite=False)
-        else:
-            frac = np.sqrt((self.n - 1) / self.n)
-            v = self.invsqrtSigmahat @ delta
-            norm = frac / np.sqrt(1 + (v.T @ v).item())
-            self.invsqrtSigmahat = downdate_cholesky(
-                self.invsqrtSigmahat, (norm * self.invsqrtSigmahat @ v).reshape(-1)
-            )
+        Accumulates the sum of outer products in _M, which is used to
+        compute the covariance matrix.
+        """
+        delta = delta.reshape(-1, 1)
+        frac = (self.n - 1) / self.n
+        self._M += frac * delta @ delta.T
+
+    @property
+    def Sigmahat(self) -> np.ndarray:
+        """
+        Compute the sample covariance matrix.
+
+        Returns
+        -------
+        np.ndarray
+            Sample covariance matrix, shape (n_dim, n_dim). Returns identity
+            matrix if n <= 1.
+        """
+        if self.n <= 1:
+            return np.eye(self.n_dim, dtype=np.float64)
+        return self._M / (self.n - 1)
+
+    @property
+    def invsqrtSigmahat(self) -> np.ndarray:
+        """
+        Compute the inverse square root of the covariance matrix.
+
+        Returns Σ^(-1/2) computed via Cholesky decomposition of the inverse
+        covariance matrix.
+
+        Returns
+        -------
+        np.ndarray
+            Inverse square root of covariance matrix, shape (n_dim, n_dim).
+            Returns identity matrix if covariance is not positive definite.
+        """
+        try:
+            sqrtinvSigma = cholesky(inv(self.Sigmahat, check_finite=False), check_finite=False)
+        except np.linalg.LinAlgError:
+            sqrtinvSigma = np.eye(self.n_dim, dtype=np.float64)
+        return sqrtinvSigma
 
     def transform(self, x: np.ndarray) -> np.ndarray:
         """
@@ -174,15 +153,9 @@ class MultivariateNormalizer(Normalizer):
         """
         Reset the normalizer to initial state.
 
-        Reinitializes observation count, mean, inverse covariance, and its
-        Cholesky factor.
-
-        Notes
-        -----
-        WARNING: The invSigmahat initialization uses max float values which
-        can cause numerical overflow. This is a known bug.
+        Reinitializes observation count, mean, and covariance accumulator (_M)
+        to zeros.
         """
         self.n = 0
-        self.muhat = np.array([0.0] * self.n_dim)
-        self.invSigmahat = np.eye(self.n_dim, dtype=np.float64) * np.finfo(np.float64).max
-        self.invsqrtSigmahat = np.eye(self.n_dim, dtype=np.float64)
+        self.muhat = np.zeros(self.n_dim, dtype=np.float64)
+        self._M = np.zeros((self.n_dim, self.n_dim), dtype=np.float64)
