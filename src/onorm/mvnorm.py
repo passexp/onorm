@@ -4,7 +4,35 @@ from scipy.linalg import cholesky
 from .normalization_base import Normalizer
 
 
-def downdate_cholesky(R, x):
+def downdate_cholesky(R: np.ndarray, x: np.ndarray) -> np.ndarray:
+    """
+    Perform Cholesky downdate (rank-one downdate of Cholesky factorization).
+
+    Given a Cholesky factor R such that R^T R = A, computes the updated
+    Cholesky factor R' such that R'^T R' = A - xx^T.
+
+    Parameters
+    ----------
+    R : np.ndarray
+        Upper triangular Cholesky factor, shape (p, p).
+    x : np.ndarray
+        Vector for rank-one downdate, shape (p,).
+
+    Returns
+    -------
+    np.ndarray
+        Updated Cholesky factor R', shape (p, p).
+
+    Notes
+    -----
+    This function modifies R in-place and also modifies x during computation.
+    The algorithm uses Givens rotations to maintain the triangular structure.
+
+    References
+    ----------
+    Gill, Golub, Murray, and Saunders (1974). Methods for modifying matrix
+    factorizations. Mathematics of Computation, 28(126), 505-535.
+    """
     p = np.size(x)
     for k in range(p):
         r = np.sqrt(np.power(R[k, k], 2) - np.power(x[k], 2))
@@ -18,23 +46,62 @@ def downdate_cholesky(R, x):
 
 
 class MultivariateNormalizer(Normalizer):
-    """Multivariate normalization
+    """
+    Online multivariate normalization using inverse covariance matrix estimation.
 
-    The class performs normalization so that elements of the resulting matrix have zero
-    correlation, zero mean and standard deviation of one.
+    This normalizer transforms multivariate data to have zero mean, unit variance,
+    and zero correlation (decorrelation). It uses online estimation of the inverse
+    covariance matrix via rank-one updates to Cholesky decomposition, achieving
+    O(d²) time complexity per observation.
 
-    Define the multivariate mean and covariance to be $\\mu$ and $\\Sigma$.
+    The transformation is: Σ^(-1/2) (x - μ)
+    where μ is the mean and Σ is the covariance matrix.
 
-    If we knew both of these quantities, then normalization would be:
+    Parameters
+    ----------
+    n_dim : int
+        Number of dimensions/features in the data.
+    warmup_period : int
+        Number of initial observations before switching to efficient Cholesky
+        updates. During warmup, full Cholesky decomposition is computed.
 
-    $$\\Sigma^{-\\frac{1}{2}}(x_t - \\mu)$$
+    Attributes
+    ----------
+    n : int
+        Number of observations seen so far.
+    muhat : np.ndarray
+        Estimated mean vector, shape (n_dim,).
+    invSigmahat : np.ndarray
+        Estimated inverse covariance matrix, shape (n_dim, n_dim).
+    invsqrtSigmahat : np.ndarray
+        Cholesky factor of inverse covariance (Σ^(-1/2)), shape (n_dim, n_dim).
 
-    Instead, we make (online) estimates of these quantities ($\\Sigma^{-\\frac{1}{2}}$ and $\\mu$)
-    and normalize using those estimates.
+    Examples
+    --------
+    >>> from onorm import MultivariateNormalizer
+    >>> import numpy as np
+    >>> normalizer = MultivariateNormalizer(n_dim=3, warmup_period=10)
+    >>> # Generate correlated data
+    >>> cov = np.array([[1, 0.5, 0.3], [0.5, 1, 0.4], [0.3, 0.4, 1]])
+    >>> X = np.random.multivariate_normal([0, 0, 0], cov, size=100)
+    >>> for x in X:
+    ...     normalizer.partial_fit(x)
+    >>> x_new = np.array([1.0, 1.0, 1.0])
+    >>> x_normalized = normalizer.transform(x_new.copy())
+    >>> # x_normalized will be decorrelated
 
-    In particular, these online estimates rely on the ability to perform rank one updates to a
-    Cholesky decomposition, which is an $O(d^2)$ operation. Application of normalization can
-    also be accomplished in $O(d^2)$. Without sparsity, this matches the optimal time complexity.
+    Notes
+    -----
+    - Time complexity: O(d²) per observation for both fitting and transformation
+    - Space complexity: O(d²) for storing covariance matrix
+    - WARNING: Current implementation has a critical bug with invSigmahat
+      initialization using max float values, causing numerical overflow. This
+      class may not function correctly until fixed.
+
+    References
+    ----------
+    Rank-one updates to Cholesky decomposition:
+    https://en.wikipedia.org/wiki/Cholesky_decomposition#Rank-one_update
     """
 
     def __init__(self, n_dim: int, warmup_period: int) -> None:
@@ -43,15 +110,20 @@ class MultivariateNormalizer(Normalizer):
         self.reset()
 
     def partial_fit(self, x: np.ndarray) -> None:
-        """Update the estimates for the normalization model.
+        """
+        Update mean and inverse covariance estimates with a new observation.
 
-        Updates the estimates of the mean, inverse covariance and Cholesky decomposition of the
-        inverse covariance.
+        Uses rank-one update formulas to incrementally update the inverse
+        covariance matrix and its Cholesky decomposition.
 
+        Parameters
+        ----------
+        x : np.ndarray
+            A 1-D array of shape (n_dim,) representing a new observation.
+
+        References
+        ----------
         https://en.wikipedia.org/wiki/Cholesky_decomposition#Rank-one_update
-
-        Args:
-            x: A 1d array representing a new observation.
         """
         delta = x - self.muhat
         self.n += 1
@@ -59,16 +131,19 @@ class MultivariateNormalizer(Normalizer):
         self._update_invSigmahat(delta)
         self._update_invsqrtSigmahat(delta)
 
-    def _update_muhat(self, delta):
+    def _update_muhat(self, delta: np.ndarray) -> None:
+        """Update running mean estimate."""
         self.muhat += delta / self.n
 
-    def _update_invSigmahat(self, delta):
+    def _update_invSigmahat(self, delta: np.ndarray) -> None:
+        """Update inverse covariance matrix using Sherman-Morrison formula."""
         frac = (self.n - 1) / self.n
         Mnum = frac * (self.invSigmahat @ delta) @ (delta @ self.invSigmahat)
         Mden = 1.0 + frac * delta @ self.invSigmahat @ delta
         self.invSigmahat = self.invSigmahat - Mnum / Mden.item()
 
-    def _update_invsqrtSigmahat(self, delta):
+    def _update_invsqrtSigmahat(self, delta: np.ndarray) -> None:
+        """Update Cholesky factor of inverse covariance."""
         if self.n < self.warmup_period:
             cholesky(self.invSigmahat, check_finite=False)
         else:
@@ -80,17 +155,33 @@ class MultivariateNormalizer(Normalizer):
             )
 
     def transform(self, x: np.ndarray) -> np.ndarray:
-        """Transform the feature vector according to the current state
+        """
+        Apply multivariate normalization (decorrelation and standardization).
 
-        If the current minimum and maximum are equal, then the transformation
-        returns $x_{ti} - \\textrm{mn}_{ti}$.
+        Parameters
+        ----------
+        x : np.ndarray
+            A 1-D array of shape (n_dim,) to normalize.
 
-        Args:
-            x: A 1d array representing an observation to normalize.
+        Returns
+        -------
+        np.ndarray
+            Decorrelated and standardized array of shape (n_dim,).
         """
         return (self.invsqrtSigmahat @ (x - self.muhat)).reshape(-1)
 
-    def reset(self):
+    def reset(self) -> None:
+        """
+        Reset the normalizer to initial state.
+
+        Reinitializes observation count, mean, inverse covariance, and its
+        Cholesky factor.
+
+        Notes
+        -----
+        WARNING: The invSigmahat initialization uses max float values which
+        can cause numerical overflow. This is a known bug.
+        """
         self.n = 0
         self.muhat = np.array([0.0] * self.n_dim)
         self.invSigmahat = np.eye(self.n_dim, dtype=np.float64) * np.finfo(np.float64).max

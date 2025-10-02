@@ -143,8 +143,8 @@ def test_standard_ddof():
     ), "Different ddof should produce different transforms"
 
     # ddof=1 uses n-1 denominator, resulting in larger std
-    std0 = np.sqrt(scaler0.M / scaler0.n)
-    std1 = np.sqrt(scaler1.M / (scaler1.n - 1))
+    std0 = np.sqrt(scaler0.variance)
+    std1 = np.sqrt(scaler1.variance)
     assert np.all(
         std0 <= std1
     ), "Sample std (ddof=1) should be >= population std (ddof=0)"
