@@ -56,7 +56,7 @@ markdown_extensions:
 
 plugins:
 - coverage:
-    page_name: coverage  # default
+    page_path: coverage  # default
     html_report_dir: htmlcov  # default
 - search
 - gen-files:
@@ -67,8 +67,6 @@ plugins:
 - section-index
 - autorefs
 - mkdocstrings:
-    watch:
-      - src/onorm
     handlers: 
       python:
         setup_commands:
@@ -84,3 +82,5 @@ plugins:
           merge_init_into_class: yes
         rendering:
           show_submodules: no
+watch:
+  - src/onorm

@@ -1,7 +1,7 @@
 from typing import List, Tuple
 
 import numpy as np
-from tdigest import TDigest
+from fastdigest import TDigest
 
 from .normalization_base import Normalizer
 
@@ -20,10 +20,10 @@ class Winsorizer(Normalizer):
         Number of dimensions/features to normalize
     clip_q : tuple of float, default=(0, 1)
         Lower and upper quantiles for clipping, in range [0, 1].
-        For example, (0.1, 0.9) clips values below the 10th percentile
-        and above the 90th percentile.
-    tdigest_delta : float, default=0.01
-        Compression parameter for TDigest. Smaller values increase precision
+        For example, (0.1, 0.9) clips values below the 10th quantile
+        and above the 90th quantile.
+    max_centroids : int, default=1000
+        Maximum number of centroids for TDigest. Higher values increase precision
         but use more memory.
 
     Attributes
@@ -40,7 +40,7 @@ class Winsorizer(Normalizer):
     >>> for x in X:
     ...     winsorizer.partial_fit(x)
     >>> x_new = np.array([10.0, 10.0, 10.0])  # Outlier
-    >>> x_clipped = winsorizer.transform(x_new.copy())  # Clips to 90th percentile
+    >>> x_clipped = winsorizer.transform(x_new.copy())  # Clips to 90th quantile
 
     Notes
     -----
@@ -50,11 +50,11 @@ class Winsorizer(Normalizer):
     """
 
     def __init__(
-        self, n_dim: int, clip_q: Tuple[float, float] = (0, 1), tdigest_delta: float = 0.01
+        self, n_dim: int, clip_q: Tuple[float, float] = (0, 1), max_centroids: int = 1000
     ) -> None:
         self.clip_q = clip_q
         self.n_dim = n_dim
-        self.delta = tdigest_delta
+        self.max_centroids = max_centroids
         self.reset()
 
     def partial_fit(self, x: np.ndarray) -> None:
@@ -67,7 +67,7 @@ class Winsorizer(Normalizer):
             A 1-D array of shape (n_dim,) representing a new observation.
         """
         for i, xi in enumerate(x):
-            self.digests[i].update(xi)
+            self.digests[i].update(xi.item())
 
     def transform(self, x: np.ndarray) -> np.ndarray:
         """
@@ -88,8 +88,8 @@ class Winsorizer(Normalizer):
         for i in range(self.n_dim):
             x[i] = np.clip(
                 x[i],
-                self.digests[i].percentile(self.clip_q[0] * 100),
-                self.digests[i].percentile(self.clip_q[1] * 100),
+                self.digests[i].quantile(self.clip_q[0]),
+                self.digests[i].quantile(self.clip_q[1]),
             )
         return x
 
@@ -99,4 +99,6 @@ class Winsorizer(Normalizer):
 
         Reinitializes TDigest objects for all features, clearing quantile estimates.
         """
-        self.digests: List[TDigest] = [TDigest(delta=self.delta) for _ in range(self.n_dim)]
+        self.digests: List[TDigest] = [
+            TDigest(max_centroids=self.max_centroids) for _ in range(self.n_dim)
+        ]

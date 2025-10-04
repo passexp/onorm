@@ -4,17 +4,7 @@
 [![ci](https://github.com/ddimmery/onorm/actions/workflows/ci.yml/badge.svg)](https://github.com/ddimmery/onorm/actions/workflows/ci.yml)
 ![PyPI](https://img.shields.io/pypi/v/onorm)
 
-A library for online (incremental/streaming) normalization of data, particularly useful for sequential experimentation and machine learning applications.
-
-## Features
-
-- **Online Normalization**: Update statistics incrementally without storing all data
-- **Multiple Normalizers**:
-  - `StandardScaler` - Z-score normalization (mean=0, std=1)
-  - `MinMaxScaler` - Scale to [0, 1] range
-  - `Winsorizer` - Clip outliers using quantiles
-  - `MultivariateNormalizer` - Multivariate decorrelation
-- **Pipeline Support**: Chain multiple normalizers together
+`onorm` provides online (incremental) normalization algorithms for streaming data. These normalizers update their statistics incrementally without storing historical data, making them suitable for large-scale or real-time applications.
 
 ## Installation
 
@@ -22,57 +12,124 @@ A library for online (incremental/streaming) normalization of data, particularly
 pip install onorm
 ```
 
-## Quick Start
+## Features
 
-### StandardScaler - Z-score Normalization
+- **StandardScaler**: Online standardization (z-score normalization)
+- **MinMaxScaler**: Online min-max scaling to [0, 1]
+- **Winsorizer**: Online outlier clipping using quantiles
+- **MultivariateNormalizer**: Online decorrelation and standardization
+- **Pipeline**: Chain multiple normalizers sequentially
+
+All normalizers support:
+- Incremental updates via `partial_fit()`
+- Transformation via `transform()`
+- Combined operation via `partial_fit_transform()`
+- State reset via `reset()`
+
+## Usage Example
+
+Let's compare online normalization with and without outlier handling. We'll process a stream of data points and track how well each approach maintains normalized statistics.
+
 
 ```python
 import numpy as np
-from onorm import StandardScaler
+import pandas as pd
+from numpy.random import default_rng
+from onorm import Pipeline, StandardScaler, Winsorizer
+from plotnine import aes, geom_line, geom_vline, ggplot, labs, theme, theme_minimal
 
-# Create scaler for 3-dimensional data
-scaler = StandardScaler(n_dim=3)
-
-# Simulate streaming data
-for i in range(100):
-    x = np.random.normal(loc=5, scale=2, size=3)
-
-    # Update statistics and transform
-    x_normalized = scaler.partial_fit_transform(x)
-
-    # x_normalized has mean ≈ 0 and std ≈ 1
+rng = default_rng(2024)
 ```
 
-### MinMaxScaler - Scale to [0, 1]
 
 ```python
-from onorm import MinMaxScaler
+# Generate streaming data with outliers
+n_samples = 1000
+n_dim = 5
 
-scaler = MinMaxScaler(n_dim=3)
+X = rng.normal(loc=10, scale=1, size=(n_samples, n_dim))
 
-for i in range(100):
-    x = np.random.normal(size=3)
-    x_normalized = scaler.partial_fit_transform(x)
+# Add some outliers
+outlier_indices = [100, 250, 500, 750]
+for idx in outlier_indices:
+    X[idx] = rng.uniform(-100, 100, size=n_dim)
 
-    # x_normalized is in range [0, 1]
+print(f"Generated {n_samples} samples with {len(outlier_indices)} outliers")
 ```
 
-### Pipeline - Combine Multiple Normalizers
+    Generated 1000 samples with 4 outliers
+
+
 
 ```python
-from onorm import Pipeline, StandardScaler, MinMaxScaler
+# Approach 1: StandardScaler only (sensitive to outliers)
+scaler_only = StandardScaler(n_dim=n_dim)
 
-# First standardize, then scale to [0, 1]
+# Approach 2: Pipeline with Winsorizer + StandardScaler (robust to outliers)
 pipeline = Pipeline([
-    StandardScaler(n_dim=3),
-    MinMaxScaler(n_dim=3)
+    Winsorizer(n_dim=n_dim, clip_q=(0.05, 0.95)),
+    StandardScaler(n_dim=n_dim)
 ])
 
-for i in range(100):
-    x = np.random.normal(size=3)
-    x_normalized = pipeline.partial_fit_transform(x)
+# Track mean estimates over time
+scaler_means = []
+pipeline_means = []
+
+for x in X:
+    scaler_only.partial_fit(x)
+    pipeline.partial_fit(x)
+
+    scaler_means.append(scaler_only.mean[0])
+    pipeline_means.append(pipeline.normalizers[1].mean[0])
+
+print(f"StandardScaler final mean: {scaler_only.mean[0]:.2f}")
+print(f"Pipeline final mean: {pipeline.normalizers[1].mean[0]:.2f}")
 ```
 
-## Documentation
+    StandardScaler final mean: 9.84
+    Pipeline final mean: 10.02
 
-For detailed documentation, visit [https://passexp.github.io/onorm/](https://passexp.github.io/onorm/)
+
+### Visualization
+
+The plot shows how the estimated mean evolves as data streams in. The pipeline with winsorization maintains stable estimates when outliers appear (red lines), while the standard scaler is more affected by extreme values.
+
+
+```python
+# Prepare data for plotting
+true_mean = X[~np.isin(np.arange(len(X)), outlier_indices), 0].mean()
+
+df = pd.DataFrame({
+    'Sample': range(n_samples),
+    'StandardScaler': scaler_means,
+    'Pipeline': pipeline_means,
+    'True Mean': true_mean
+})
+
+df_long = pd.melt(df, id_vars=['Sample'], var_name='Method', value_name='Estimated Mean')
+
+# Plot
+(
+    ggplot(df_long, aes(x='Sample', y='Estimated Mean', color='Method'))
+    + geom_line()
+    + geom_vline(xintercept=outlier_indices, color='red', alpha=0.3)
+    + labs(title='Mean Estimation Over Time', x='Sample Index', y='Estimated Mean')
+    + theme_minimal()
+    + theme(legend_position = "bottom")
+)
+```
+
+
+    
+![png](README_files/README_6_0.png)
+    
+
+
+### Key Takeaways
+
+- **Online Learning**: All normalizers update incrementally without storing historical data
+- **Robustness**: Use `Pipeline` with `Winsorizer` to handle outliers in streaming data
+- **Efficiency**: Memory footprint remains constant regardless of stream length
+- **Flexibility**: Mix and match normalizers to build custom preprocessing pipelines
+
+For more details, see the [documentation](https://passexp.github.io/onorm/).
