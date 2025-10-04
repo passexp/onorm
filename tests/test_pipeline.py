@@ -74,11 +74,13 @@ def test_pipeline_three_normalizers(rng):
     n_dim = 3
 
     # Pipeline: Winsorize outliers -> Standardize -> MinMax scale
-    pipeline = Pipeline([
-        Winsorizer(n_dim=n_dim, clip_q=(0.1, 0.9)),
-        StandardScaler(n_dim=n_dim),
-        MinMaxScaler(n_dim=n_dim),
-    ])
+    pipeline = Pipeline(
+        [
+            Winsorizer(n_dim=n_dim, clip_q=(0.1, 0.9)),
+            StandardScaler(n_dim=n_dim),
+            MinMaxScaler(n_dim=n_dim),
+        ]
+    )
 
     X = rng.normal(size=(100, n_dim))
     X[0] = [100, 100, 100]  # Add outlier
@@ -206,10 +208,7 @@ def test_pipeline_winsorize_before_standardize(rng):
     X[50] = [100.0, 100.0, 100.0]  # Outlier appears after 50 normal points
 
     # Pipeline: Winsorize -> Standardize
-    pipeline = Pipeline([
-        Winsorizer(n_dim=n_dim, clip_q=(0.05, 0.95)),
-        StandardScaler(n_dim=n_dim)
-    ])
+    pipeline = Pipeline([Winsorizer(n_dim=n_dim, clip_q=(0.05, 0.95)), StandardScaler(n_dim=n_dim)])
 
     for x in X:
         pipeline.partial_fit(x)
@@ -234,10 +233,9 @@ def test_pipeline_winsorize_before_standardize(rng):
     X_test = rng.normal(loc=0, scale=1, size=(50, n_dim))
     X_test[25] = [100.0, 100.0, 100.0]  # Another outlier
 
-    pipeline2 = Pipeline([
-        Winsorizer(n_dim=n_dim, clip_q=(0.05, 0.95)),
-        StandardScaler(n_dim=n_dim)
-    ])
+    pipeline2 = Pipeline(
+        [Winsorizer(n_dim=n_dim, clip_q=(0.05, 0.95)), StandardScaler(n_dim=n_dim)]
+    )
 
     # Track what the second normalizer sees
     inputs_to_scaler = []

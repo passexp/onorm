@@ -1,4 +1,4 @@
-main: coverage build_docs serve
+main: coverage benchmark build_docs serve
 
 build_docs: build_readme
 	PYTHONPATH=src poetry run mkdocs build
@@ -25,3 +25,8 @@ build_readme: README.ipynb
 	cp -r docs/README_files .github/
 	cp README.md .github/
 	pandoc --from=markdown --to=rst --output=README README.md
+
+benchmark: simulation/benchmark_results.md
+	poetry run python simulation/benchmark_performance.py
+	cp simulation/scaling_*.png docs/
+	cp simulation/benchmark_results.md docs/

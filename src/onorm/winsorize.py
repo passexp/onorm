@@ -7,12 +7,22 @@ from .normalization_base import Normalizer
 
 
 class Winsorizer(Normalizer):
-    """
-    Online winsorization normalizer using TDigest for quantile estimation.
+    r"""
+    Online winsorizer for robust outlier clipping using TDigest quantiles.
 
     Clips extreme values to specified quantiles, replacing outliers with the
     values at the quantile boundaries. Uses TDigest for efficient online
     quantile estimation without storing all historical data.
+
+    For each feature $i$, the transformation is:
+
+    $$x_{\text{clip},i} = \begin{cases}
+    Q_{\text{lower},i} & \text{if } x_i < Q_{\text{lower},i} \\
+    x_i & \text{if } Q_{\text{lower},i} \leq x_i \leq Q_{\text{upper},i} \\
+    Q_{\text{upper},i} & \text{if } x_i > Q_{\text{upper},i}
+    \end{cases}$$
+
+    where $Q_{\text{lower},i}$ and $Q_{\text{upper},i}$ are the estimated quantiles.
 
     Parameters
     ----------
@@ -33,14 +43,20 @@ class Winsorizer(Normalizer):
 
     Examples
     --------
-    >>> from onorm import Winsorizer
-    >>> winsorizer = Winsorizer(n_dim=3, clip_q=(0.1, 0.9))
-    >>> import numpy as np
-    >>> X = np.random.normal(size=(100, 3))
-    >>> for x in X:
-    ...     winsorizer.partial_fit(x)
-    >>> x_new = np.array([10.0, 10.0, 10.0])  # Outlier
-    >>> x_clipped = winsorizer.transform(x_new.copy())  # Clips to 90th quantile
+    ```{python}
+    from onorm import Winsorizer
+    import numpy as np
+    winsorizer = Winsorizer(n_dim=3, clip_q=(0.1, 0.9))
+    X = np.random.normal(size=(100, 3))
+    for x in X:
+        winsorizer.partial_fit(x)
+    x_new = np.array([10.0, 10.0, 10.0])  # Outlier
+    x_clipped = winsorizer.transform(x_new.copy())  # Clips to 90th quantile
+    ```
+
+    References
+    ----------
+    [Computing Extremely Accurate Quantiles Using t-Digests](https://arxiv.org/abs/1902.04023)
 
     Notes
     -----

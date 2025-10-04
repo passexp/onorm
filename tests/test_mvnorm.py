@@ -22,11 +22,7 @@ def correlated_data():
     n_samples = 50
 
     true_mean = np.array([1.0, 2.0, 3.0])
-    true_cov = np.array([
-        [2.0, 0.5, 0.3],
-        [0.5, 1.5, 0.4],
-        [0.3, 0.4, 1.0]
-    ])
+    true_cov = np.array([[2.0, 0.5, 0.3], [0.5, 1.5, 0.4], [0.3, 0.4, 1.0]])
 
     X = rng.multivariate_normal(true_mean, true_cov, size=n_samples)
     return X, n_dim, true_mean, true_cov
@@ -84,8 +80,9 @@ def test_mvnorm_initialization():
     assert normalizer.n == 0, "Should initialize n to 0"
     assert normalizer.muhat.shape == (n_dim,), "Mean should have correct shape"
     assert normalizer.Sigmahat.shape == (n_dim, n_dim), "Covariance should have correct shape"
-    assert (
-        normalizer.invsqrtSigmahat.shape == (n_dim, n_dim)
+    assert normalizer.invsqrtSigmahat.shape == (
+        n_dim,
+        n_dim,
     ), "Inv sqrt cov should have correct shape"
 
 
@@ -158,15 +155,15 @@ def test_mvnorm_decorrelation(correlated_data, fitted_normalizer):
 
     # Check mean
     transformed_mean = np.mean(X_transformed, axis=0)
-    assert np.allclose(transformed_mean, 0, atol=1e-10), (
-        f"Transformed data should have zero mean, got {transformed_mean}"
-    )
+    assert np.allclose(
+        transformed_mean, 0, atol=1e-10
+    ), f"Transformed data should have zero mean, got {transformed_mean}"
 
     # Check covariance
     transformed_cov = np.cov(X_transformed.T, ddof=1)
-    assert np.allclose(transformed_cov, np.eye(n_dim), atol=1e-10), (
-        f"Transformed data should have identity covariance, got:\n{transformed_cov}"
-    )
+    assert np.allclose(
+        transformed_cov, np.eye(n_dim), atol=1e-10
+    ), f"Transformed data should have identity covariance, got:\n{transformed_cov}"
 
 
 def test_mvnorm_singular_covariance():

@@ -76,9 +76,7 @@ def test_standard_vs_batch(sample_data, fitted_scaler):
 
     # Compare learned statistics
     assert np.allclose(scaler.mean, batch_mean, rtol=1e-10), "Mean should match batch"
-    assert np.allclose(
-        np.sqrt(scaler.variance), batch_std, rtol=1e-10
-    ), "Std should match batch"
+    assert np.allclose(np.sqrt(scaler.variance), batch_std, rtol=1e-10), "Std should match batch"
 
 
 def test_standard_with_mean_false(rng):
@@ -225,21 +223,17 @@ def test_standard_variance_with_high_ddof(rng):
     scaler.partial_fit(x)
 
     # Variance should be zero when n <= ddof
-    assert np.allclose(scaler.variance, np.zeros(n_dim)), (
-        "Variance should be zero when n <= ddof"
-    )
+    assert np.allclose(scaler.variance, np.zeros(n_dim)), "Variance should be zero when n <= ddof"
 
     # Add another sample (n=2, ddof=2, so n <= ddof still)
     scaler.partial_fit(rng.normal(size=n_dim))
-    assert np.allclose(scaler.variance, np.zeros(n_dim)), (
-        "Variance should be zero when n == ddof"
-    )
+    assert np.allclose(scaler.variance, np.zeros(n_dim)), "Variance should be zero when n == ddof"
 
     # Add third sample (n=3, ddof=2, so n > ddof now)
     scaler.partial_fit(rng.normal(size=n_dim))
-    assert not np.allclose(scaler.variance, np.zeros(n_dim)), (
-        "Variance should be non-zero when n > ddof"
-    )
+    assert not np.allclose(
+        scaler.variance, np.zeros(n_dim)
+    ), "Variance should be non-zero when n > ddof"
 
 
 def test_standard_with_mean_and_std_both_false(rng):
@@ -333,11 +327,13 @@ def test_standard_mixed_variance_features(rng):
 
     # Create data with very different scales
     # Feature 0: small variance, Feature 1: medium variance, Feature 2: large variance
-    X = np.column_stack([
-        rng.normal(loc=0, scale=0.01, size=100),  # Low variance
-        rng.normal(loc=0, scale=1.0, size=100),   # Medium variance
-        rng.normal(loc=0, scale=100.0, size=100), # High variance
-    ])
+    X = np.column_stack(
+        [
+            rng.normal(loc=0, scale=0.01, size=100),  # Low variance
+            rng.normal(loc=0, scale=1.0, size=100),  # Medium variance
+            rng.normal(loc=0, scale=100.0, size=100),  # High variance
+        ]
+    )
 
     for x in X:
         scaler.partial_fit(x)
@@ -347,9 +343,9 @@ def test_standard_mixed_variance_features(rng):
     transformed_std = np.std(X_transformed, axis=0, ddof=1)
 
     # All should be close to 1.0
-    assert np.allclose(transformed_std, 1.0, atol=0.1), (
-        "All features should have similar standard deviations after scaling"
-    )
+    assert np.allclose(
+        transformed_std, 1.0, atol=0.1
+    ), "All features should have similar standard deviations after scaling"
 
 
 def test_standard_high_dimensional(rng):
@@ -393,7 +389,7 @@ def test_standard_incremental_statistics(rng):
 
     # Mean should change with each observation
     for i in range(1, len(means)):
-        assert not np.allclose(means[i], means[i-1]), "Mean should update with each observation"
+        assert not np.allclose(means[i], means[i - 1]), "Mean should update with each observation"
 
     # Variance should stabilize as more data is added
     if len(variances) > 5:

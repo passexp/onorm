@@ -43,6 +43,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.ruff]
 line-length = 100
 extend-include = ["*.ipynb"]
+extend-exclude = ["simulation/*.ipynb"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "C90", "I"]

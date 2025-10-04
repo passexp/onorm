@@ -147,9 +147,7 @@ def test_winsorizer_partial_fit_transform(rng):
     winsorizer2 = Winsorizer(n_dim=n_dim, clip_q=(0.1, 0.9))
     x_combined = winsorizer2.partial_fit_transform(x.copy())
 
-    assert np.allclose(
-        x_combined, x_separate
-    ), "partial_fit_transform should match separate calls"
+    assert np.allclose(x_combined, x_separate), "partial_fit_transform should match separate calls"
 
 
 def test_winsorizer_max_centroids_parameter(rng):

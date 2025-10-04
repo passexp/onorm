@@ -10,6 +10,7 @@ nav:
     - Contributing: contributing.md
     - Code of Conduct: code-of-conduct.md
     - Coverage report: coverage.md
+    - Benchmark: benchmark_results.md
 extra:
   analytics:
     provider: google
@@ -76,7 +77,7 @@ plugins:
         - https://docs.python.org/3/objects.inv
         - https://numpy.org/doc/stable/objects.inv
         options:
-          docstring_style: google
+          docstring_style: numpy
           docstring_options:
             ignore_init_summary: yes
           merge_init_into_class: yes

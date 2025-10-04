@@ -21,6 +21,7 @@ pip install onorm
 - **Pipeline**: Chain multiple normalizers sequentially
 
 All normalizers support:
+
 - Incremental updates via `partial_fit()`
 - Transformation via `transform()`
 - Combined operation via `partial_fit_transform()`
@@ -66,10 +67,7 @@ print(f"Generated {n_samples} samples with {len(outlier_indices)} outliers")
 scaler_only = StandardScaler(n_dim=n_dim)
 
 # Approach 2: Pipeline with Winsorizer + StandardScaler (robust to outliers)
-pipeline = Pipeline([
-    Winsorizer(n_dim=n_dim, clip_q=(0.05, 0.95)),
-    StandardScaler(n_dim=n_dim)
-])
+pipeline = Pipeline([Winsorizer(n_dim=n_dim, clip_q=(0.05, 0.95)), StandardScaler(n_dim=n_dim)])
 
 # Track mean estimates over time
 scaler_means = []
@@ -99,23 +97,25 @@ The plot shows how the estimated mean evolves as data streams in. The pipeline w
 # Prepare data for plotting
 true_mean = X[~np.isin(np.arange(len(X)), outlier_indices), 0].mean()
 
-df = pd.DataFrame({
-    'Sample': range(n_samples),
-    'StandardScaler': scaler_means,
-    'Pipeline': pipeline_means,
-    'True Mean': true_mean
-})
+df = pd.DataFrame(
+    {
+        "Sample": range(n_samples),
+        "StandardScaler": scaler_means,
+        "Pipeline": pipeline_means,
+        "True Mean": true_mean,
+    }
+)
 
-df_long = pd.melt(df, id_vars=['Sample'], var_name='Method', value_name='Estimated Mean')
+df_long = pd.melt(df, id_vars=["Sample"], var_name="Method", value_name="Estimated Mean")
 
 # Plot
 (
-    ggplot(df_long, aes(x='Sample', y='Estimated Mean', color='Method'))
+    ggplot(df_long, aes(x="Sample", y="Estimated Mean", color="Method"))
     + geom_line()
-    + geom_vline(xintercept=outlier_indices, color='red', alpha=0.3)
-    + labs(title='Mean Estimation Over Time', x='Sample Index', y='Estimated Mean')
+    + geom_vline(xintercept=outlier_indices, color="red", alpha=0.3)
+    + labs(title="Mean Estimation Over Time", x="Sample Index", y="Estimated Mean")
     + theme_minimal()
-    + theme(legend_position = "bottom")
+    + theme(legend_position="bottom")
 )
 ```
 

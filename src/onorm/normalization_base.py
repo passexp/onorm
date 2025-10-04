@@ -16,13 +16,15 @@ class Normalizer(metaclass=ABCMeta):
 
     Examples
     --------
-    >>> from onorm import MinMaxScaler
-    >>> scaler = MinMaxScaler(n_dim=3)
-    >>> import numpy as np
-    >>> for x in np.random.normal(size=(100, 3)):
-    ...     scaler.partial_fit(x)
-    >>> x_new = np.array([1.0, 2.0, 3.0])
-    >>> x_normalized = scaler.transform(x_new)
+    ```{python}
+    from onorm import MinMaxScaler
+    import numpy as np
+    scaler = MinMaxScaler(n_dim=3)
+    for x in np.random.normal(size=(100, 3)):
+        scaler.partial_fit(x)
+    x_new = np.array([1.0, 2.0, 3.0])
+    x_normalized = scaler.transform(x_new)
+    ```
     """
 
     def __init__(self, **kwargs: object) -> None:

@@ -29,22 +29,26 @@ class Pipeline(Normalizer):
 
     Examples
     --------
-    >>> from onorm import Pipeline, Winsorizer, StandardScaler, MinMaxScaler
-    >>> import numpy as np
-    >>> # Create a pipeline: clip outliers, then standardize, then scale to [0,1]
-    >>> pipeline = Pipeline([
-    ...     Winsorizer(n_dim=3, clip_q=(0.05, 0.95)),
-    ...     StandardScaler(n_dim=3),
-    ...     MinMaxScaler(n_dim=3)
-    ... ])
-    >>> X = np.random.normal(size=(100, 3))
-    >>> for x in X:
-    ...     pipeline.partial_fit(x)
-    >>> x_new = np.array([2.0, -1.0, 0.5])
-    >>> x_normalized = pipeline.transform(x_new.copy())
+    ```{python}
+    from onorm import Pipeline, Winsorizer, StandardScaler, MinMaxScaler
+    import numpy as np
+    # Create a pipeline: clip outliers, then standardize, then scale to [0,1]
+    pipeline = Pipeline(
+        [
+            Winsorizer(n_dim=3, clip_q=(0.05, 0.95)),
+            StandardScaler(n_dim=3),
+            MinMaxScaler(n_dim=3),
+        ]
+    )
+    X = np.random.normal(size=(100, 3))
+    for x in X:
+        pipeline.partial_fit(x)
+    x_new = np.array([2.0, -1.0, 0.5])
+    x_normalized = pipeline.transform(x_new.copy())
 
-    >>> # Empty pipeline (identity transformation)
-    >>> identity_pipeline = Pipeline([])
+    # Empty pipeline (identity transformation)
+    identity_pipeline = Pipeline([])
+    ```
 
     Notes
     -----

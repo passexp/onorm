@@ -4,19 +4,21 @@ from .normalization_base import Normalizer
 
 
 class MinMaxScaler(Normalizer):
-    """
-    Online min-max normalization to scale features to [0, 1] range.
+    r"""
+    Online min-max scaler for feature normalization to [0, 1] range.
 
-    This normalizer tracks the running minimum and maximum for each feature
-    and scales values to the range [0, 1] based on these statistics. The
-    normalization is updated incrementally as new observations arrive.
+    Tracks the running minimum and maximum for each feature and scales values
+    to the range [0, 1] based on these statistics. The normalization is updated
+    incrementally as new observations arrive.
 
-    For each feature i at time t, tracks:
-        min_i = min{x_1i, ..., x_ti}
-        max_i = max{x_1i, ..., x_ti}
+    For each feature $i$ at time $t$, tracks:
+
+    $$\text{min}_i = \min\{x_{1,i}, \ldots, x_{t,i}\}$$
+    $$\text{max}_i = \max\{x_{1,i}, \ldots, x_{t,i}\}$$
 
     And transforms values as:
-        x_norm_i = (x_i - min_i) / (max_i - min_i)
+
+    $$x_{\text{norm},i} = \frac{x_i - \text{min}_i}{\text{max}_i - \text{min}_i}$$
 
     Parameters
     ----------
@@ -32,15 +34,17 @@ class MinMaxScaler(Normalizer):
 
     Examples
     --------
-    >>> from onorm import MinMaxScaler
-    >>> import numpy as np
-    >>> scaler = MinMaxScaler(n_dim=3)
-    >>> X = np.random.uniform(-5, 5, size=(100, 3))
-    >>> for x in X:
-    ...     scaler.partial_fit(x)
-    >>> x_new = np.array([2.0, -1.0, 3.0])
-    >>> x_normalized = scaler.transform(x_new.copy())
-    >>> assert np.all((x_normalized >= 0) & (x_normalized <= 1))
+    ```{python}
+    from onorm import MinMaxScaler
+    import numpy as np
+    scaler = MinMaxScaler(n_dim=3)
+    X = np.random.uniform(-5, 5, size=(100, 3))
+    for x in X:
+        scaler.partial_fit(x)
+    x_new = np.array([2.0, -1.0, 3.0])
+    x_normalized = scaler.transform(x_new.copy())
+    assert np.all((x_normalized >= 0) & (x_normalized <= 1))
+    ```
 
     Notes
     -----

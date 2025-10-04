@@ -5,15 +5,18 @@ from .normalization_base import Normalizer
 
 
 class MultivariateNormalizer(Normalizer):
-    """
-    Online multivariate normalization using covariance matrix estimation.
+    r"""
+    Online multivariate normalizer with decorrelation via covariance estimation.
 
-    This normalizer transforms multivariate data to have zero mean, unit variance,
-    and zero correlation (decorrelation). It uses online estimation of the
-    covariance matrix and computes the inverse square root for transformation.
+    Transforms multivariate data to have zero mean, unit variance, and zero
+    correlation (decorrelation). Uses online estimation of the covariance matrix
+    and computes the inverse square root for transformation.
 
-    The transformation is: Σ^(-1/2) @ (x - μ)
-    where μ is the estimated mean and Σ is the estimated covariance matrix.
+    The transformation is:
+
+    $$\Sigma^{-1/2} (x - \mu)$$
+
+    where $\mu$ is the estimated mean and $\Sigma$ is the estimated covariance matrix.
 
     Parameters
     ----------
@@ -29,21 +32,23 @@ class MultivariateNormalizer(Normalizer):
     Sigmahat : np.ndarray
         Estimated covariance matrix (computed from _M), shape (n_dim, n_dim).
     invsqrtSigmahat : np.ndarray
-        Inverse square root of covariance matrix (Σ^(-1/2)), shape (n_dim, n_dim).
+        Inverse square root of covariance matrix ($\Sigma^{-1/2}$), shape (n_dim, n_dim).
 
     Examples
     --------
-    >>> from onorm import MultivariateNormalizer
-    >>> import numpy as np
-    >>> normalizer = MultivariateNormalizer(n_dim=3)
-    >>> # Generate correlated data
-    >>> cov = np.array([[1, 0.5, 0.3], [0.5, 1, 0.4], [0.3, 0.4, 1]])
-    >>> X = np.random.multivariate_normal([0, 0, 0], cov, size=100)
-    >>> for x in X:
-    ...     normalizer.partial_fit(x)
-    >>> x_new = np.array([1.0, 1.0, 1.0])
-    >>> x_normalized = normalizer.transform(x_new.copy())
-    >>> # x_normalized will be decorrelated with zero mean and unit variance
+    ```{python}
+    from onorm import MultivariateNormalizer
+    import numpy as np
+    normalizer = MultivariateNormalizer(n_dim=3)
+    # Generate correlated data
+    cov = np.array([[1, 0.5, 0.3], [0.5, 1, 0.4], [0.3, 0.4, 1]])
+    X = np.random.multivariate_normal([0, 0, 0], cov, size=100)
+    for x in X:
+        normalizer.partial_fit(x)
+    x_new = np.array([1.0, 1.0, 1.0])
+    x_normalized = normalizer.transform(x_new.copy())
+    # x_normalized will be decorrelated with zero mean and unit variance
+    ```
 
     Notes
     -----
@@ -54,8 +59,7 @@ class MultivariateNormalizer(Normalizer):
 
     References
     ----------
-    Welford's online algorithm:
-    https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
+    [Welford's online algorithm](https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm)
     """
 
     def __init__(self, n_dim: int) -> None:
@@ -74,9 +78,13 @@ class MultivariateNormalizer(Normalizer):
         x : np.ndarray
             A 1-D array of shape (n_dim,) representing a new observation.
 
+        See Also
+        --------
+        Normalizer.partial_fit : Base class method for incremental fitting.
+
         References
         ----------
-        https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
+        [Welford's online algorithm](https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm)
         """
         delta = x - self.muhat
         self.n += 1
@@ -115,11 +123,14 @@ class MultivariateNormalizer(Normalizer):
 
     @property
     def invsqrtSigmahat(self) -> np.ndarray:
-        """
+        r"""
         Compute the inverse square root of the covariance matrix.
 
-        Returns Σ^(-1/2) computed via Cholesky decomposition of the inverse
-        covariance matrix.
+        Returns:
+
+        $$\Sigma^{-1/2}$$
+
+        Computed via Cholesky decomposition of the inverse covariance matrix.
 
         Returns
         -------

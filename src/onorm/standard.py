@@ -4,19 +4,19 @@ from .normalization_base import Normalizer
 
 
 class StandardScaler(Normalizer):
-    """
-    Online standardization (z-score normalization) using Welford's algorithm.
+    r"""
+    Online standard scaler for z-score normalization using Welford's algorithm.
 
-    Transforms features to have zero mean and unit variance using an online
-    algorithm that is numerically stable and memory-efficient. This implementation
-    uses Welford's algorithm to compute mean and variance incrementally without
-    storing historical observations.
+    Transforms features to have zero mean and unit variance using a numerically
+    stable and memory-efficient online algorithm. Uses Welford's algorithm to
+    compute mean and variance incrementally without storing historical observations.
 
-    For each feature i at time t:
-        - Mean update: μ_ti = μ_(t-1)i + (x_ti - μ_(t-1)i) / t
-        - Variance (Welford's M): M_ti = M_(t-1)i + (x_ti - μ_(t-1)i)(x_ti - μ_ti)
-        - Sample variance: σ²_ti = M_ti / (t - ddof)
-        - Standardization: z_ti = (x_ti - μ_ti) / σ_ti
+    For each feature $i$ at time $t$:
+
+    - Mean update: $\mu_{t,i} = \mu_{t-1,i} + \frac{x_{t,i} - \mu_{t-1,i}}{t}$
+    - Variance (Welford's M): $M_{t,i} = M_{t-1,i} + (x_{t,i} - \mu_{t-1,i})(x_{t,i} - \mu_{t,i})$
+    - Sample variance: $\sigma^2_{t,i} = \frac{M_{t,i}}{t - \text{ddof}}$
+    - Standardization: $z_{t,i} = \frac{x_{t,i} - \mu_{t,i}}{\sigma_{t,i}}$
 
     Parameters
     ----------
@@ -41,30 +41,31 @@ class StandardScaler(Normalizer):
         Welford's M statistic for variance calculation, shape (n_dim,).
     variance : np.ndarray
         Computed variance for each feature, shape (n_dim,). This is a property
-        that calculates variance as M / (n - ddof).
+        that calculates variance as `M / (n - ddof)`.
 
     Examples
     --------
-    >>> from onorm import StandardScaler
-    >>> import numpy as np
-    >>> scaler = StandardScaler(n_dim=3)
-    >>> X = np.random.normal(loc=5, scale=2, size=(100, 3))
-    >>> for x in X:
-    ...     scaler.partial_fit(x)
-    >>> x_new = np.array([5.0, 5.0, 5.0])
-    >>> x_normalized = scaler.transform(x_new.copy())
-    >>> # x_normalized will be close to [0, 0, 0] since x_new is near the mean
+    ```{python}
+    from onorm import StandardScaler
+    import numpy as np
+    scaler = StandardScaler(n_dim=3)
+    X = np.random.normal(loc=5, scale=2, size=(100, 3))
+    for x in X:
+        scaler.partial_fit(x)
+    x_new = np.array([5.0, 5.0, 5.0])
+    x_normalized = scaler.transform(x_new.copy())
+    # x_normalized will be close to [0, 0, 0] since x_new is near the mean
 
-    >>> # Standardize without mean centering
-    >>> scaler2 = StandardScaler(n_dim=2, with_mean=False)
+    # Standardize without mean centering
+    scaler2 = StandardScaler(n_dim=2, with_mean=False)
 
-    >>> # Use population variance instead of sample variance
-    >>> scaler3 = StandardScaler(n_dim=2, ddof=0)
+    # Use population variance instead of sample variance
+    scaler3 = StandardScaler(n_dim=2, ddof=0)
+    ```
 
     References
     ----------
-    Welford's online algorithm:
-    https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
+    [Welford's online algorithm](https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm)
 
     Notes
     -----
@@ -126,7 +127,7 @@ class StandardScaler(Normalizer):
 
         Notes
         -----
-        The variance is computed as M / (n - ddof), where ddof is the degrees
+        The variance is computed as `M / (n - ddof)`, where ddof is the degrees
         of freedom correction (Bessel's correction).
         """
         if self.n <= self.ddof:

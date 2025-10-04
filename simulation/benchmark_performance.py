@@ -70,9 +70,7 @@ class PerformanceBenchmark:
             "MultivariateNormalizer": MultivariateNormalizer(n_dim=n_dim),
             "Winsorizer(5-95%)": Winsorizer(n_dim=n_dim, clip_q=(0.05, 0.95)),
             # Pipelines
-            "Standard>MinMax": Pipeline(
-                [StandardScaler(n_dim=n_dim), MinMaxScaler(n_dim=n_dim)]
-            ),
+            "Standard>MinMax": Pipeline([StandardScaler(n_dim=n_dim), MinMaxScaler(n_dim=n_dim)]),
             "Standard>Multivariate": Pipeline(
                 [StandardScaler(n_dim=n_dim), MultivariateNormalizer(n_dim=n_dim)]
             ),
@@ -199,9 +197,7 @@ class PerformanceBenchmark:
                     # Generate data once
                     X = data_func(n, d)
 
-                    for norm_idx, (norm_name, normalizer) in enumerate(
-                        normalizers.items(), 1
-                    ):
+                    for norm_idx, (norm_name, normalizer) in enumerate(normalizers.items(), 1):
                         result = self.run_benchmark(norm_name, normalizer, X, dgp_name, n_reps)
                         self.results.append(result)
                         print(
@@ -234,11 +230,13 @@ class PerformanceBenchmark:
         scaling_data = []
         for r in self.results:
             if r.dgp == "Normal" and r.n_dim == 5:
-                scaling_data.append({
-                    "n_samples": r.n_samples,
-                    "time_us": r.mean_time_us,
-                    "normalizer": r.normalizer
-                })
+                scaling_data.append(
+                    {
+                        "n_samples": r.n_samples,
+                        "time_us": r.mean_time_us,
+                        "normalizer": r.normalizer,
+                    }
+                )
 
         df_scaling = pd.DataFrame(scaling_data)
 
@@ -254,11 +252,9 @@ class PerformanceBenchmark:
         dim_data = []
         for r in self.results:
             if r.dgp == "Normal" and r.n_samples == 500:
-                dim_data.append({
-                    "n_dim": r.n_dim,
-                    "time_us": r.mean_time_us,
-                    "normalizer": r.normalizer
-                })
+                dim_data.append(
+                    {"n_dim": r.n_dim, "time_us": r.mean_time_us, "normalizer": r.normalizer}
+                )
 
         df_dim = pd.DataFrame(dim_data)
 
@@ -272,19 +268,13 @@ class PerformanceBenchmark:
         print("  ✓ Saved scaling_sample_size.png")
         print("  ✓ Saved scaling_dimensionality.png")
 
-    def _generate_sample_size_scaling_section(self) -> tuple[str, dict]:
-        """Generate the sample size scaling analysis section."""
-        md = []
-
-        # Find the sample size scaling test - look for Normal DGP with multiple sample sizes
-        scaling_groups = defaultdict(list)
+    def _find_best_dimension_for_scaling(self) -> tuple[int | None, dict]:
+        """Find the dimension with the most sample size variation."""
         sample_size_dims = set()
-
         for r in self.results:
             if r.dgp == "Normal":
                 sample_size_dims.add(r.n_dim)
 
-        # Find the dimension with the most sample size variation
         best_dim = None
         max_variation = 0
         for dim in sample_size_dims:
@@ -295,18 +285,54 @@ class PerformanceBenchmark:
                 max_variation = len(unique_n)
                 best_dim = dim
 
+        scaling_groups = defaultdict(list)
         if best_dim is not None:
             for r in self.results:
                 if r.dgp == "Normal" and r.n_dim == best_dim:
                     scaling_groups[r.normalizer].append(r)
 
+        return best_dim, scaling_groups
+
+    def _build_sample_size_table_header(self, all_n_samples: list[int]) -> str:
+        """Build the dynamic header for sample size scaling table."""
+        header = "| Normalizer |"
+        separator = "|------------|"
+        for n in all_n_samples:
+            header += f" n={n:,} (μs) |"
+            separator += "-----------|"
+        header += " Ratio (max/min) | Constant? |\n"
+        separator += "-----------------|----------|\n"
+        return f"\n{header}{separator}"
+
+    def _build_sample_size_table_row(
+        self, normalizer: str, group: list, all_n_samples: list[int]
+    ) -> str:
+        """Build a table row for a normalizer in the sample size scaling table."""
+        times = [r.mean_time_us for r in group]
+        time_ratio = max(times) / min(times) if min(times) > 0 else float("inf")
+        is_constant = time_ratio < 1.5
+        constant_str = "✓ Yes" if is_constant else "⚠ Check"
+
+        row = f"| {normalizer} |"
+        time_map = {r.n_samples: r.mean_time_us for r in group}
+        for n in all_n_samples:
+            if n in time_map:
+                row += f" {time_map[n]:.2f} |"
+            else:
+                row += " — |"
+        row += f" {time_ratio:.2f} | {constant_str} |\n"
+        return row
+
+    def _generate_sample_size_scaling_section(self) -> tuple[str, dict]:
+        """Generate the sample size scaling analysis section."""
+        md = []
+
+        best_dim, scaling_groups = self._find_best_dimension_for_scaling()
+
         if scaling_groups:
-            # Collect all unique sample sizes that appear in the data
-            all_n_samples = sorted(set(
-                r.n_samples
-                for group in scaling_groups.values()
-                for r in group
-            ))
+            all_n_samples = sorted(
+                set(r.n_samples for group in scaling_groups.values() for r in group)
+            )
 
             md.append(f"\n### Sample Size Scaling (d={best_dim}, Normal)\n")
             md.append(
@@ -314,54 +340,25 @@ class PerformanceBenchmark:
                 "as sample size increases:\n"
             )
 
-            # Build dynamic header
-            header = "| Normalizer |"
-            separator = "|------------|"
-            for n in all_n_samples:
-                header += f" n={n:,} (μs) |"
-                separator += "-----------|"
-            header += " Ratio (max/min) | Constant? |\n"
-            separator += "-----------------|----------|\n"
-
-            md.append(f"\n{header}")
-            md.append(separator)
+            md.append(self._build_sample_size_table_header(all_n_samples))
 
             for normalizer in sorted(scaling_groups.keys()):
                 group = sorted(scaling_groups[normalizer], key=lambda x: x.n_samples)
-                if len(group) >= 3:  # Need multiple sample sizes
-                    times = [r.mean_time_us for r in group]
-
-                    time_ratio = max(times) / min(times) if min(times) > 0 else float("inf")
-                    is_constant = time_ratio < 1.5
-                    constant_str = "✓ Yes" if is_constant else "⚠ Check"
-
-                    # Build row with actual times
-                    row = f"| {normalizer} |"
-                    time_map = {r.n_samples: r.mean_time_us for r in group}
-                    for n in all_n_samples:
-                        if n in time_map:
-                            row += f" {time_map[n]:.2f} |"
-                        else:
-                            row += " — |"
-                    row += f" {time_ratio:.2f} | {constant_str} |\n"
+                if len(group) >= 3:
+                    row = self._build_sample_size_table_row(normalizer, group, all_n_samples)
                     md.append(row)
 
             md.append("\n![Sample Size Scaling](scaling_sample_size.png)\n")
 
         return "".join(md), scaling_groups
 
-    def _generate_dimensionality_scaling_section(self) -> str:
-        """Generate the dimensionality scaling analysis section."""
-        md = []
-
-        # Find the dimensionality scaling test - look for Normal DGP with multiple dimensions
+    def _find_best_sample_size_for_dim_scaling(self) -> tuple[int | None, dict]:
+        """Find the sample size with the most dimension variation."""
         dim_scaling_n_samples = set()
-
         for r in self.results:
             if r.dgp == "Normal":
                 dim_scaling_n_samples.add(r.n_samples)
 
-        # Find the sample size with the most dimension variation
         best_n = None
         max_dim_variation = 0
         for n in dim_scaling_n_samples:
@@ -378,34 +375,52 @@ class PerformanceBenchmark:
                 if r.dgp == "Normal" and r.n_samples == best_n:
                     dim_groups[r.normalizer][r.n_dim].append(r.mean_time_us)
 
+        return best_n, dim_groups
+
+    def _build_dim_scaling_table_header(self, all_dims: list[int]) -> str:
+        """Build the dynamic header for dimensionality scaling table."""
+        header = "| Normalizer |"
+        separator = "|------------|"
+        for d in all_dims:
+            header += f" d={d} (μs) |"
+            separator += "----------|"
+        return f"\n{header}\n{separator}\n"
+
+    def _build_dim_scaling_table_row(
+        self, normalizer: str, dim_data: dict, all_dims: list[int]
+    ) -> str:
+        """Build a table row for a normalizer in the dimensionality scaling table."""
+        row = f"| {normalizer} |"
+        for d in all_dims:
+            if d in dim_data:
+                row += f" {np.mean(dim_data[d]):.2f} |"
+            else:
+                row += " — |"
+        return row + "\n"
+
+    def _generate_dimensionality_scaling_section(self) -> str:
+        """Generate the dimensionality scaling analysis section."""
+        md = []
+
+        best_n, dim_groups = self._find_best_sample_size_for_dim_scaling()
+
         if dim_groups:
-            # Collect all unique dimensions that appear in the data
-            all_dims = sorted(set(
-                dim
-                for normalizer_dims in dim_groups.values()
-                for dim in normalizer_dims.keys()
-            ))
+            all_dims = sorted(
+                set(
+                    dim for normalizer_dims in dim_groups.values() for dim in normalizer_dims.keys()
+                )
+            )
 
             md.append(f"\n### Dimensionality Scaling (n={best_n:,}, Normal)\n")
             md.append("\nPerformance across different dimensionalities:\n")
 
-            # Build dynamic header
-            header = "| Normalizer |"
-            separator = "|------------|"
-            for d in all_dims:
-                header += f" d={d} (μs) |"
-                separator += "----------|"
-            md.append(f"\n{header}\n")
-            md.append(f"{separator}\n")
+            md.append(self._build_dim_scaling_table_header(all_dims))
 
             for normalizer in sorted(dim_groups.keys()):
-                row = f"| {normalizer} |"
-                for d in all_dims:
-                    if d in dim_groups[normalizer]:
-                        row += f" {np.mean(dim_groups[normalizer][d]):.2f} |"
-                    else:
-                        row += " — |"
-                md.append(row + "\n")
+                row = self._build_dim_scaling_table_row(
+                    normalizer, dim_groups[normalizer], all_dims
+                )
+                md.append(row)
 
             md.append("\n![Dimensionality Scaling](scaling_dimensionality.png)\n")
 
@@ -429,136 +444,12 @@ class PerformanceBenchmark:
             "3. Pipelines have expected overhead from component normalizers\n"
         )
 
-        # Sample Size Scaling Analysis
-        # Find the sample size scaling test - look for Normal DGP with multiple sample sizes
-        scaling_groups = defaultdict(list)
-        sample_size_dims = set()
+        # Use helper methods for scaling sections
+        sample_size_section, scaling_groups = self._generate_sample_size_scaling_section()
+        md.append(sample_size_section)
 
-        for r in self.results:
-            if r.dgp == "Normal":
-                sample_size_dims.add(r.n_dim)
-
-        # Find the dimension with the most sample size variation
-        best_dim = None
-        max_variation = 0
-        for dim in sample_size_dims:
-            unique_n = set(
-                r.n_samples for r in self.results if r.dgp == "Normal" and r.n_dim == dim
-            )
-            if len(unique_n) > max_variation:
-                max_variation = len(unique_n)
-                best_dim = dim
-
-        if best_dim is not None:
-            for r in self.results:
-                if r.dgp == "Normal" and r.n_dim == best_dim:
-                    scaling_groups[r.normalizer].append(r)
-
-        if scaling_groups:
-            # Collect all unique sample sizes that appear in the data
-            all_n_samples = sorted(set(
-                r.n_samples
-                for group in scaling_groups.values()
-                for r in group
-            ))
-
-            md.append(f"\n### Sample Size Scaling (d={best_dim}, Normal)\n")
-            md.append(
-                "\nVerifying that normalizers maintain constant per-observation complexity "
-                "as sample size increases:\n"
-            )
-
-            # Build dynamic header
-            header = "| Normalizer |"
-            separator = "|------------|"
-            for n in all_n_samples:
-                header += f" n={n:,} (μs) |"
-                separator += "-----------|"
-            header += " Ratio (max/min) | Constant? |\n"
-            separator += "-----------------|----------|\n"
-
-            md.append(f"\n{header}")
-            md.append(separator)
-
-            for normalizer in sorted(scaling_groups.keys()):
-                group = sorted(scaling_groups[normalizer], key=lambda x: x.n_samples)
-                if len(group) >= 3:  # Need multiple sample sizes
-                    times = [r.mean_time_us for r in group]
-
-                    time_ratio = max(times) / min(times) if min(times) > 0 else float("inf")
-                    is_constant = time_ratio < 1.5
-                    constant_str = "✓ Yes" if is_constant else "⚠ Check"
-
-                    # Build row with actual times
-                    row = f"| {normalizer} |"
-                    time_map = {r.n_samples: r.mean_time_us for r in group}
-                    for n in all_n_samples:
-                        if n in time_map:
-                            row += f" {time_map[n]:.2f} |"
-                        else:
-                            row += " — |"
-                    row += f" {time_ratio:.2f} | {constant_str} |\n"
-                    md.append(row)
-
-        # Add plot
-        md.append("\n![Sample Size Scaling](scaling_sample_size.png)\n")
-
-        # Dimensionality Scaling (moved to summary)
-        # Find the dimensionality scaling test - look for Normal DGP with multiple dimensions
-        dim_scaling_n_samples = set()
-
-        for r in self.results:
-            if r.dgp == "Normal":
-                dim_scaling_n_samples.add(r.n_samples)
-
-        # Find the sample size with the most dimension variation
-        best_n = None
-        max_dim_variation = 0
-        for n in dim_scaling_n_samples:
-            unique_dims = set(
-                r.n_dim for r in self.results if r.dgp == "Normal" and r.n_samples == n
-            )
-            if len(unique_dims) > max_dim_variation:
-                max_dim_variation = len(unique_dims)
-                best_n = n
-
-        dim_groups = defaultdict(lambda: defaultdict(list))
-        if best_n is not None:
-            for r in self.results:
-                if r.dgp == "Normal" and r.n_samples == best_n:
-                    dim_groups[r.normalizer][r.n_dim].append(r.mean_time_us)
-
-        if dim_groups:
-            # Collect all unique dimensions that appear in the data
-            all_dims = sorted(set(
-                dim
-                for normalizer_dims in dim_groups.values()
-                for dim in normalizer_dims.keys()
-            ))
-
-            md.append(f"\n### Dimensionality Scaling (n={best_n:,}, Normal)\n")
-            md.append("\nPerformance across different dimensionalities:\n")
-
-            # Build dynamic header
-            header = "| Normalizer |"
-            separator = "|------------|"
-            for d in all_dims:
-                header += f" d={d} (μs) |"
-                separator += "----------|"
-            md.append(f"\n{header}\n")
-            md.append(f"{separator}\n")
-
-            for normalizer in sorted(dim_groups.keys()):
-                row = f"| {normalizer} |"
-                for d in all_dims:
-                    if d in dim_groups[normalizer]:
-                        row += f" {np.mean(dim_groups[normalizer][d]):.2f} |"
-                    else:
-                        row += " — |"
-                md.append(row + "\n")
-
-        # Add plot
-        md.append("\n![Dimensionality Scaling](scaling_dimensionality.png)\n")
+        dimensionality_section = self._generate_dimensionality_scaling_section()
+        md.append(dimensionality_section)
 
         # Detailed Results
         md.append("\n## Detailed Results\n")
@@ -609,9 +500,7 @@ class PerformanceBenchmark:
             1
             for normalizer, group in scaling_groups.items()
             if len(group) >= 3
-            and (
-                max(r.mean_time_us for r in group) / min(r.mean_time_us for r in group) < 1.5
-            )
+            and (max(r.mean_time_us for r in group) / min(r.mean_time_us for r in group) < 1.5)
         )
         total_scaling = sum(1 for normalizer, group in scaling_groups.items() if len(group) >= 3)
 
