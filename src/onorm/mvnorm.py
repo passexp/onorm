@@ -200,21 +200,17 @@ class MultivariateNormalizer(Normalizer):
             Deserialized normalizer instance.
         """
         if data.get("class") != "MultivariateNormalizer":
-            raise ValueError(
-                f"Cannot deserialize {data.get('class')} as MultivariateNormalizer"
-            )
+            raise ValueError(f"Cannot deserialize {data.get('class')} as MultivariateNormalizer")
 
         config = data["config"]
         instance = cls(n_dim=config["n_dim"])
 
         state = data["state"]
         instance.n = state["n"]
-        instance.muhat = np.frombuffer(
-            base64.b64decode(state["muhat"]), dtype=np.float64
+        instance.muhat = np.frombuffer(base64.b64decode(state["muhat"]), dtype=np.float64)
+        instance._M = np.frombuffer(base64.b64decode(state["_M"]), dtype=np.float64).reshape(
+            (config["n_dim"], config["n_dim"])
         )
-        instance._M = np.frombuffer(
-            base64.b64decode(state["_M"]), dtype=np.float64
-        ).reshape((config["n_dim"], config["n_dim"]))
 
         return instance
 

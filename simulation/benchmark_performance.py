@@ -24,7 +24,7 @@ from onorm import (
     StandardScaler,
     Winsorizer,
 )
-from plotnine import aes, geom_line, ggplot, theme_minimal, theme
+from plotnine import aes, geom_line, ggplot, theme, theme_minimal
 
 
 @dataclass

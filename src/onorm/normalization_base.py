@@ -1,4 +1,5 @@
 from abc import ABCMeta, abstractmethod
+from typing import Any, Dict
 
 import numpy as np
 
@@ -120,5 +121,76 @@ class Normalizer(metaclass=ABCMeta):
         -----
         This is useful when you want to reuse the same normalizer object on
         a completely different dataset without creating a new instance.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Serialize the normalizer state to a dictionary.
+
+        Returns a dictionary containing the normalizer's configuration and
+        learned state in a JSON-serializable format. The dictionary can be
+        stored in databases, files, or transmitted over networks.
+
+        Returns
+        -------
+        dict
+            Dictionary with keys:
+            - "version": str - Serialization format version
+            - "class": str - Normalizer class name
+            - "config": dict - Configuration parameters
+            - "state": dict - Learned statistics (arrays are base64-encoded)
+
+        See Also
+        --------
+        from_dict : Deserialize from dictionary
+        to_json : Serialize to JSON string
+        from_json : Deserialize from JSON string
+
+        Examples
+        --------
+        ```{python}
+        from onorm import StandardScaler
+        import numpy as np
+        scaler = StandardScaler(n_dim=3)
+        for x in np.random.randn(100, 3):
+            scaler.partial_fit(x)
+        data = scaler.to_dict()
+        restored = StandardScaler.from_dict(data)
+        ```
+        """
+        raise NotImplementedError
+
+    @classmethod
+    @abstractmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Normalizer":
+        """
+        Deserialize a normalizer from a dictionary.
+
+        Creates a new normalizer instance from a dictionary created by to_dict().
+        The normalizer will have the exact same configuration and learned state
+        as the original.
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary created by to_dict() containing serialized state.
+
+        Returns
+        -------
+        Normalizer
+            Deserialized normalizer instance with restored state.
+
+        Raises
+        ------
+        ValueError
+            If the data dictionary is for a different normalizer class.
+
+        See Also
+        --------
+        to_dict : Serialize to dictionary
+        to_json : Serialize to JSON string
+        from_json : Deserialize from JSON string
         """
         raise NotImplementedError

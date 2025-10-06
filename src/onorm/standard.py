@@ -244,9 +244,7 @@ class StandardScaler(Normalizer):
             Deserialized scaler instance.
         """
         if data.get("class") != "StandardScaler":
-            raise ValueError(
-                f"Cannot deserialize {data.get('class')} as StandardScaler"
-            )
+            raise ValueError(f"Cannot deserialize {data.get('class')} as StandardScaler")
 
         config = data["config"]
         instance = cls(
@@ -258,9 +256,7 @@ class StandardScaler(Normalizer):
 
         state = data["state"]
         instance.n = state["n"]
-        instance.mean = np.frombuffer(
-            base64.b64decode(state["mean"]), dtype=np.float64
-        )
+        instance.mean = np.frombuffer(base64.b64decode(state["mean"]), dtype=np.float64)
         instance.M = np.frombuffer(base64.b64decode(state["M"]), dtype=np.float64)
 
         return instance

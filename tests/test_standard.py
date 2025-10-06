@@ -558,8 +558,8 @@ def test_standard_serialization_with_options(rng):
     restored = StandardScaler.from_dict(data)
 
     # Test that options are preserved
-    assert restored.with_mean == False
-    assert restored.with_std == True
+    assert restored.with_mean is False
+    assert restored.with_std is True
     assert restored.ddof == 0
 
     # Test that transformation matches

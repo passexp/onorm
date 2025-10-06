@@ -270,9 +270,7 @@ def test_pipeline_winsorize_before_standardize(rng):
 def test_pipeline_serialization_to_dict(rng):
     """Test serialization to dictionary."""
     n_dim = 3
-    pipeline = Pipeline(
-        [Winsorizer(n_dim=n_dim, clip_q=(0.1, 0.9)), StandardScaler(n_dim=n_dim)]
-    )
+    pipeline = Pipeline([Winsorizer(n_dim=n_dim, clip_q=(0.1, 0.9)), StandardScaler(n_dim=n_dim)])
 
     # Fit with data
     X = rng.normal(size=(50, n_dim))

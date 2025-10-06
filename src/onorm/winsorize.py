@@ -143,9 +143,7 @@ class Winsorizer(Normalizer):
                 "clip_q": list(self.clip_q),
                 "max_centroids": self.max_centroids,
             },
-            "state": {
-                "digests": [digest.to_dict() for digest in self.digests]
-            },
+            "state": {"digests": [digest.to_dict() for digest in self.digests]},
         }
 
     @classmethod
@@ -164,9 +162,7 @@ class Winsorizer(Normalizer):
             Deserialized winsorizer instance.
         """
         if data.get("class") != "Winsorizer":
-            raise ValueError(
-                f"Cannot deserialize {data.get('class')} as Winsorizer"
-            )
+            raise ValueError(f"Cannot deserialize {data.get('class')} as Winsorizer")
 
         config = data["config"]
         instance = cls(
@@ -176,9 +172,7 @@ class Winsorizer(Normalizer):
         )
 
         state = data["state"]
-        instance.digests = [
-            TDigest.from_dict(digest_dict) for digest_dict in state["digests"]
-        ]
+        instance.digests = [TDigest.from_dict(digest_dict) for digest_dict in state["digests"]]
 
         return instance
 

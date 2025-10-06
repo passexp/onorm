@@ -201,9 +201,7 @@ class MinMaxScaler(Normalizer):
         ```
         """
         if data.get("class") != "MinMaxScaler":
-            raise ValueError(
-                f"Cannot deserialize {data.get('class')} as MinMaxScaler"
-            )
+            raise ValueError(f"Cannot deserialize {data.get('class')} as MinMaxScaler")
 
         # Create instance with config
         config = data["config"]
@@ -211,12 +209,8 @@ class MinMaxScaler(Normalizer):
 
         # Restore state arrays
         state = data["state"]
-        instance.min = np.frombuffer(
-            base64.b64decode(state["min"]), dtype=np.float64
-        )
-        instance.max = np.frombuffer(
-            base64.b64decode(state["max"]), dtype=np.float64
-        )
+        instance.min = np.frombuffer(base64.b64decode(state["min"]), dtype=np.float64)
+        instance.max = np.frombuffer(base64.b64decode(state["max"]), dtype=np.float64)
 
         return instance
 

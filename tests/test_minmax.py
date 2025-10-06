@@ -3,7 +3,6 @@ import json
 import numpy as np
 import pytest
 from numpy.random import default_rng
-
 from onorm import MinMaxScaler
 
 

@@ -11,8 +11,8 @@ import json
 import time
 
 import numpy as np
-
 from onorm import MinMaxScaler
+
 
 # Performance benchmark helper
 def benchmark_serialization(scaler, n_runs=1000):
@@ -80,7 +80,7 @@ print(f"Max values (first 5): {scaler_normal.max[:5]}")
 # Test transformation
 x_test = np.random.randn(10)
 x_norm = scaler_normal.transform(x_test.copy())
-print(f"\nSample transformation:")
+print("\nSample transformation:")
 print(f"  Input (first 5): {x_test[:5]}")
 print(f"  Output (first 5): {x_norm[:5]}")
 
@@ -88,7 +88,7 @@ print(f"  Output (first 5): {x_norm[:5]}")
 data_normal = scaler_normal.to_dict()
 json_str_normal = scaler_normal.to_json()
 
-print(f"\nSerialization:")
+print("\nSerialization:")
 print(f"  JSON size: {len(json_str_normal)} bytes")
 print(f"  Structure keys: {list(data_normal.keys())}")
 
@@ -128,7 +128,7 @@ print(f"Max range: [{scaler_uniform.max.min():.2f}, {scaler_uniform.max.max():.2
 # Serialize and benchmark
 json_str_large = scaler_uniform.to_json()
 
-print(f"\nSerialization:")
+print("\nSerialization:")
 print(f"  JSON size: {len(json_str_large)} bytes")
 
 print(f"\nPerformance (n_dim=100, n_samples={n_samples_large}):")
@@ -171,8 +171,7 @@ for rec in db_records:
     config_size = len(rec["config_json"])
     state_size = len(rec["state_json"])
     print(
-        f"{rec['id']:<5} {rec['name']:<25} {rec['n_dim']:<8} "
-        f"{config_size:<15} {state_size:<15}"
+        f"{rec['id']:<5} {rec['name']:<25} {rec['n_dim']:<8} " f"{config_size:<15} {state_size:<15}"
     )
 
 # Simulate retrieval
@@ -193,22 +192,24 @@ print("\n" + "=" * 70)
 print("Performance Summary")
 print("=" * 70)
 
-print(f"\nSmall model (n_dim=10):")
+print("\nSmall model (n_dim=10):")
 print(f"  Serialization:   ~{bench['serialize_us']:.0f} μs")
 print(f"  Deserialization: ~{bench['deserialize_us']:.0f} μs")
 print(f"  Storage size:    {bench['json_size_bytes']} bytes")
 
-print(f"\nLarge model (n_dim=100):")
+print("\nLarge model (n_dim=100):")
 print(f"  Serialization:   ~{bench_large['serialize_us']:.0f} μs")
 print(f"  Deserialization: ~{bench_large['deserialize_us']:.0f} μs")
 print(f"  Storage size:    {bench_large['json_size_bytes']} bytes")
 
-print(f"\nConclusion:")
-print(f"  • Hybrid JSON+base64 format is fast (~{bench['total_roundtrip_us']:.0f}-"
-      f"{bench_large['total_roundtrip_us']:.0f} μs round-trip)")
+print("\nConclusion:")
+print(
+    f"  • Hybrid JSON+base64 format is fast (~{bench['total_roundtrip_us']:.0f}-"
+    f"{bench_large['total_roundtrip_us']:.0f} μs round-trip)"
+)
 print(f"  • Compact storage ({bench['json_size_bytes']}-{bench_large['json_size_bytes']} bytes)")
-print(f"  • Database-friendly (queryable JSON metadata)")
-print(f"  • Scales well with dimensionality")
+print("  • Database-friendly (queryable JSON metadata)")
+print("  • Scales well with dimensionality")
 
 print("\n" + "=" * 70)
 print("✓ Demo complete!")

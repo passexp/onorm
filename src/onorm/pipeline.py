@@ -140,9 +140,7 @@ class Pipeline(Normalizer):
             "version": "1.0",
             "class": "Pipeline",
             "config": {},
-            "state": {
-                "normalizers": [norm.to_dict() for norm in self.normalizers]
-            },
+            "state": {"normalizers": [norm.to_dict() for norm in self.normalizers]},
         }
 
     @classmethod
