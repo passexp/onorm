@@ -115,9 +115,9 @@ class PerformanceBenchmark:
             n_dim=X.shape[1],
             n_samples=X.shape[0],
             n_reps=n_reps,
-            mean_time_us=np.mean(times_per_obs),
-            std_time_us=np.std(times_per_obs),
-            median_time_us=np.median(times_per_obs),
+            mean_time_us=float(np.mean(times_per_obs)),
+            std_time_us=float(np.std(times_per_obs)),
+            median_time_us=float(np.median(times_per_obs)),
         )
 
     def run_all_benchmarks(self):
