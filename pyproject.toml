@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "onorm"
-version = "0.1.0"
+version = "0.2.0"
 description = "A library for normalizing streams of incoming data, particularly focused on improving sequential experimentation."
-authors = ["Drew Dimmery <drew.dimmery@gmail.com>"]
+authors = ["Drew Dimmery <pypi@ddimmery.com>"]
 license = "Apache-2.0"
 readme = "README.md"
 homepage = "https://passexp.github.io/onorm/"
