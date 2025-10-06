@@ -1,7 +1,9 @@
+import json
+
 import numpy as np
 import pytest
 from numpy.random import default_rng
-from onorm import MinMaxScaler, Pipeline, StandardScaler, Winsorizer
+from onorm import MinMaxScaler, MultivariateNormalizer, Pipeline, StandardScaler, Winsorizer
 
 
 @pytest.fixture
@@ -263,3 +265,195 @@ def test_pipeline_winsorize_before_standardize(rng):
     x_normalized = pipeline.transform(x_outlier.copy())
 
     assert np.all(np.isfinite(x_normalized)), "Should produce finite results"
+
+
+def test_pipeline_serialization_to_dict(rng):
+    """Test serialization to dictionary."""
+    n_dim = 3
+    pipeline = Pipeline(
+        [Winsorizer(n_dim=n_dim, clip_q=(0.1, 0.9)), StandardScaler(n_dim=n_dim)]
+    )
+
+    # Fit with data
+    X = rng.normal(size=(50, n_dim))
+    for x in X:
+        pipeline.partial_fit(x)
+
+    data = pipeline.to_dict()
+
+    # Check structure
+    assert "version" in data
+    assert "class" in data
+    assert "config" in data
+    assert "state" in data
+
+    # Check values
+    assert data["version"] == "1.0"
+    assert data["class"] == "Pipeline"
+    assert "normalizers" in data["state"]
+
+    # Check that normalizers are serialized
+    assert isinstance(data["state"]["normalizers"], list)
+    assert len(data["state"]["normalizers"]) == 2
+    assert data["state"]["normalizers"][0]["class"] == "Winsorizer"
+    assert data["state"]["normalizers"][1]["class"] == "StandardScaler"
+
+
+def test_pipeline_serialization_roundtrip(rng):
+    """Test that serialization and deserialization preserves state."""
+    n_dim = 3
+    pipeline = Pipeline([StandardScaler(n_dim=n_dim), MinMaxScaler(n_dim=n_dim)])
+
+    # Fit with data
+    X = rng.normal(loc=5, scale=2, size=(100, n_dim))
+    for x in X:
+        pipeline.partial_fit(x)
+
+    # Transform with original pipeline
+    x_test = rng.normal(loc=5, scale=2, size=n_dim)
+    original_result = pipeline.transform(x_test.copy())
+
+    # Serialize and deserialize
+    data = pipeline.to_dict()
+    restored_pipeline = Pipeline.from_dict(data)
+
+    # Transform with restored pipeline
+    restored_result = restored_pipeline.transform(x_test.copy())
+
+    # Results should be identical
+    assert np.allclose(original_result, restored_result)
+
+    # Pipeline structure should be preserved
+    assert len(restored_pipeline.normalizers) == len(pipeline.normalizers)
+
+
+def test_pipeline_json_serialization(rng):
+    """Test JSON string serialization."""
+    n_dim = 3
+    pipeline = Pipeline([StandardScaler(n_dim=n_dim), MinMaxScaler(n_dim=n_dim)])
+
+    # Fit with data
+    X = rng.normal(size=(50, n_dim))
+    for x in X:
+        pipeline.partial_fit(x)
+
+    # Transform with original pipeline
+    x_test = rng.normal(size=n_dim)
+    original_result = pipeline.transform(x_test.copy())
+
+    # Serialize to JSON string
+    json_str = pipeline.to_json()
+
+    # Verify it's valid JSON
+    parsed = json.loads(json_str)
+    assert parsed["class"] == "Pipeline"
+
+    # Deserialize from JSON
+    restored_pipeline = Pipeline.from_json(json_str)
+
+    # Transform with restored pipeline
+    restored_result = restored_pipeline.transform(x_test.copy())
+
+    # Results should be identical
+    assert np.allclose(original_result, restored_result)
+
+
+def test_pipeline_serialization_empty():
+    """Test serialization of unfitted pipeline."""
+    n_dim = 3
+    pipeline = Pipeline([StandardScaler(n_dim=n_dim), MinMaxScaler(n_dim=n_dim)])
+
+    # Should be able to serialize even if not fitted
+    data = pipeline.to_dict()
+    restored = Pipeline.from_dict(data)
+
+    # Structure should be preserved
+    assert len(restored.normalizers) == 2
+    assert isinstance(restored.normalizers[0], StandardScaler)
+    assert isinstance(restored.normalizers[1], MinMaxScaler)
+
+
+def test_pipeline_deserialization_wrong_class():
+    """Test that deserializing wrong class raises error."""
+    data = {
+        "version": "1.0",
+        "class": "WrongClass",
+        "config": {},
+        "state": {"normalizers": []},
+    }
+
+    with pytest.raises(ValueError, match="Cannot deserialize"):
+        Pipeline.from_dict(data)
+
+
+def test_pipeline_serialization_nested(rng):
+    """Test serialization with nested pipelines."""
+    n_dim = 3
+
+    # Create nested pipeline
+    inner_pipeline = Pipeline([StandardScaler(n_dim=n_dim), MinMaxScaler(n_dim=n_dim)])
+    outer_pipeline = Pipeline([Winsorizer(n_dim=n_dim), inner_pipeline])
+
+    # Fit with data
+    X = rng.normal(size=(50, n_dim))
+    for x in X:
+        outer_pipeline.partial_fit(x)
+
+    # Transform with original
+    x_test = rng.normal(size=n_dim)
+    original_result = outer_pipeline.transform(x_test.copy())
+
+    # Serialize and deserialize
+    data = outer_pipeline.to_dict()
+    restored = Pipeline.from_dict(data)
+
+    # Transform with restored
+    restored_result = restored.transform(x_test.copy())
+
+    # Results should be identical
+    assert np.allclose(original_result, restored_result)
+
+    # Check structure
+    assert len(restored.normalizers) == 2
+    assert isinstance(restored.normalizers[0], Winsorizer)
+    assert isinstance(restored.normalizers[1], Pipeline)
+    assert len(restored.normalizers[1].normalizers) == 2
+
+
+def test_pipeline_serialization_all_normalizers(rng):
+    """Test serialization with all normalizer types."""
+    n_dim = 3
+    pipeline = Pipeline(
+        [
+            Winsorizer(n_dim=n_dim, clip_q=(0.05, 0.95)),
+            StandardScaler(n_dim=n_dim, with_mean=True, with_std=True),
+            MultivariateNormalizer(n_dim=n_dim),
+            MinMaxScaler(n_dim=n_dim),
+        ]
+    )
+
+    # Fit with data
+    X = rng.normal(size=(100, n_dim))
+    for x in X:
+        pipeline.partial_fit(x)
+
+    # Transform with original
+    x_test = rng.normal(size=n_dim)
+    original_result = pipeline.transform(x_test.copy())
+
+    # Serialize and deserialize
+    data = pipeline.to_dict()
+    restored = Pipeline.from_dict(data)
+
+    # Transform with restored
+    restored_result = restored.transform(x_test.copy())
+
+    # Results should be identical
+    assert np.allclose(original_result, restored_result)
+
+    # Check all normalizers are preserved
+    assert len(restored.normalizers) == 4
+    assert isinstance(restored.normalizers[0], Winsorizer)
+    assert isinstance(restored.normalizers[1], StandardScaler)
+    assert isinstance(restored.normalizers[2], MultivariateNormalizer)
+    assert isinstance(restored.normalizers[3], MinMaxScaler)

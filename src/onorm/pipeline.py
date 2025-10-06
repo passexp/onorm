@@ -1,4 +1,5 @@
-from typing import List
+import json
+from typing import Any, Dict, List
 
 import numpy as np
 
@@ -121,3 +122,77 @@ class Pipeline(Normalizer):
         """
         for normalizer in self.normalizers:
             normalizer.reset()
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Serialize the pipeline to a dictionary.
+
+        Returns
+        -------
+        dict
+            Dictionary with recursively serialized normalizers.
+
+        Notes
+        -----
+        Each normalizer in the pipeline is serialized using its own to_dict() method.
+        """
+        return {
+            "version": "1.0",
+            "class": "Pipeline",
+            "config": {},
+            "state": {
+                "normalizers": [norm.to_dict() for norm in self.normalizers]
+            },
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Pipeline":
+        """
+        Deserialize a pipeline from a dictionary.
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary created by to_dict().
+
+        Returns
+        -------
+        Pipeline
+            Deserialized pipeline instance.
+
+        Notes
+        -----
+        Automatically detects the class of each normalizer and deserializes accordingly.
+        """
+        if data.get("class") != "Pipeline":
+            raise ValueError(f"Cannot deserialize {data.get('class')} as Pipeline")
+
+        # Import normalizer classes (avoid circular imports)
+        from . import MinMaxScaler, MultivariateNormalizer, StandardScaler, Winsorizer
+
+        class_map = {
+            "MinMaxScaler": MinMaxScaler,
+            "StandardScaler": StandardScaler,
+            "MultivariateNormalizer": MultivariateNormalizer,
+            "Winsorizer": Winsorizer,
+            "Pipeline": cls,
+        }
+
+        state = data["state"]
+        normalizers = []
+        for norm_data in state["normalizers"]:
+            norm_class = class_map.get(norm_data["class"])
+            if norm_class is None:
+                raise ValueError(f"Unknown normalizer class: {norm_data['class']}")
+            normalizers.append(norm_class.from_dict(norm_data))
+
+        return cls(normalizers)
+
+    def to_json(self) -> str:
+        """Serialize the pipeline to a JSON string."""
+        return json.dumps(self.to_dict(), indent=2)
+
+    @classmethod
+    def from_json(cls, json_str: str) -> "Pipeline":
+        """Deserialize a pipeline from a JSON string."""
+        return cls.from_dict(json.loads(json_str))

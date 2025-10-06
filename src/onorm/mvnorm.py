@@ -1,3 +1,7 @@
+import base64
+import json
+from typing import Any, Dict
+
 import numpy as np
 from scipy.linalg import cholesky, inv
 
@@ -159,6 +163,69 @@ class MultivariateNormalizer(Normalizer):
             Decorrelated and standardized array of shape (n_dim,).
         """
         return (self.invsqrtSigmahat @ (x - self.muhat)).reshape(-1)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Serialize the normalizer state to a dictionary.
+
+        Returns
+        -------
+        dict
+            Dictionary with JSON-serializable metadata and base64-encoded arrays.
+        """
+        return {
+            "version": "1.0",
+            "class": "MultivariateNormalizer",
+            "config": {"n_dim": self.n_dim},
+            "state": {
+                "n": self.n,
+                "muhat": base64.b64encode(self.muhat.tobytes()).decode("ascii"),
+                "_M": base64.b64encode(self._M.tobytes()).decode("ascii"),
+            },
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "MultivariateNormalizer":
+        """
+        Deserialize a normalizer from a dictionary.
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary created by to_dict().
+
+        Returns
+        -------
+        MultivariateNormalizer
+            Deserialized normalizer instance.
+        """
+        if data.get("class") != "MultivariateNormalizer":
+            raise ValueError(
+                f"Cannot deserialize {data.get('class')} as MultivariateNormalizer"
+            )
+
+        config = data["config"]
+        instance = cls(n_dim=config["n_dim"])
+
+        state = data["state"]
+        instance.n = state["n"]
+        instance.muhat = np.frombuffer(
+            base64.b64decode(state["muhat"]), dtype=np.float64
+        )
+        instance._M = np.frombuffer(
+            base64.b64decode(state["_M"]), dtype=np.float64
+        ).reshape((config["n_dim"], config["n_dim"]))
+
+        return instance
+
+    def to_json(self) -> str:
+        """Serialize the normalizer to a JSON string."""
+        return json.dumps(self.to_dict(), indent=2)
+
+    @classmethod
+    def from_json(cls, json_str: str) -> "MultivariateNormalizer":
+        """Deserialize a normalizer from a JSON string."""
+        return cls.from_dict(json.loads(json_str))
 
     def reset(self) -> None:
         """

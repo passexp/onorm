@@ -1,4 +1,5 @@
-from typing import List, Tuple
+import json
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 from fastdigest import TDigest
@@ -118,3 +119,74 @@ class Winsorizer(Normalizer):
         self.digests: List[TDigest] = [
             TDigest(max_centroids=self.max_centroids) for _ in range(self.n_dim)
         ]
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Serialize the winsorizer state to a dictionary.
+
+        Returns
+        -------
+        dict
+            Dictionary with JSON-serializable metadata and TDigest states.
+
+        Notes
+        -----
+        TDigest objects are serialized using their native to_dict() method,
+        which returns a JSON-serializable dictionary containing centroids,
+        min/max values, and max_centroids configuration.
+        """
+        return {
+            "version": "1.0",
+            "class": "Winsorizer",
+            "config": {
+                "n_dim": self.n_dim,
+                "clip_q": list(self.clip_q),
+                "max_centroids": self.max_centroids,
+            },
+            "state": {
+                "digests": [digest.to_dict() for digest in self.digests]
+            },
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Winsorizer":
+        """
+        Deserialize a winsorizer from a dictionary.
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary created by to_dict().
+
+        Returns
+        -------
+        Winsorizer
+            Deserialized winsorizer instance.
+        """
+        if data.get("class") != "Winsorizer":
+            raise ValueError(
+                f"Cannot deserialize {data.get('class')} as Winsorizer"
+            )
+
+        config = data["config"]
+        instance = cls(
+            n_dim=config["n_dim"],
+            clip_q=tuple(config["clip_q"]),
+            max_centroids=config["max_centroids"],
+        )
+
+        state = data["state"]
+        instance.digests = [
+            TDigest.from_dict(digest_dict) for digest_dict in state["digests"]
+        ]
+
+        return instance
+
+    def to_json(self) -> str:
+        """Serialize the winsorizer to a JSON string."""
+        return json.dumps(self.to_dict(), indent=2)
+
+    @classmethod
+    def from_json(cls, json_str: str) -> "Winsorizer":
+        """Deserialize a winsorizer from a JSON string."""
+        return cls.from_dict(json.loads(json_str))

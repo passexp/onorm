@@ -1,3 +1,5 @@
+import json
+
 import numpy as np
 import pytest
 from numpy.random import default_rng
@@ -349,3 +351,141 @@ def test_mvnorm_high_dimensional():
     X_transformed = np.array([normalizer.transform(x.copy()) for x in X])
     transformed_cov = np.cov(X_transformed.T, ddof=1)
     assert np.allclose(transformed_cov, np.eye(n_dim), atol=1e-10)
+
+
+def test_mvnorm_serialization_to_dict(simple_data):
+    """Test serialization to dictionary."""
+    X, n_dim = simple_data
+    normalizer = MultivariateNormalizer(n_dim=n_dim)
+    for x in X:
+        normalizer.partial_fit(x)
+
+    data = normalizer.to_dict()
+
+    # Check structure
+    assert "version" in data
+    assert "class" in data
+    assert "config" in data
+    assert "state" in data
+
+    # Check values
+    assert data["version"] == "1.0"
+    assert data["class"] == "MultivariateNormalizer"
+    assert data["config"]["n_dim"] == normalizer.n_dim
+    assert "n" in data["state"]
+    assert "muhat" in data["state"]
+    assert "_M" in data["state"]
+
+    # Check that state arrays are base64 encoded strings
+    assert isinstance(data["state"]["muhat"], str)
+    assert isinstance(data["state"]["_M"], str)
+    assert isinstance(data["state"]["n"], int)
+
+
+def test_mvnorm_serialization_roundtrip(correlated_data):
+    """Test that serialization and deserialization preserves state."""
+    X, n_dim, _, _ = correlated_data
+    normalizer = MultivariateNormalizer(n_dim=n_dim)
+    for x in X:
+        normalizer.partial_fit(x)
+
+    # Transform with original normalizer
+    x_test = X[-1]
+    original_result = normalizer.transform(x_test.copy())
+
+    # Serialize and deserialize
+    data = normalizer.to_dict()
+    restored_normalizer = MultivariateNormalizer.from_dict(data)
+
+    # Transform with restored normalizer
+    restored_result = restored_normalizer.transform(x_test.copy())
+
+    # Results should be identical
+    assert np.allclose(original_result, restored_result)
+
+    # State should be identical
+    assert np.allclose(normalizer.muhat, restored_normalizer.muhat)
+    assert np.allclose(normalizer._M, restored_normalizer._M)
+    assert normalizer.n == restored_normalizer.n
+    assert normalizer.n_dim == restored_normalizer.n_dim
+
+
+def test_mvnorm_json_serialization(correlated_data):
+    """Test JSON string serialization."""
+    X, n_dim, _, _ = correlated_data
+    normalizer = MultivariateNormalizer(n_dim=n_dim)
+    for x in X:
+        normalizer.partial_fit(x)
+
+    # Transform with original normalizer
+    x_test = X[-1]
+    original_result = normalizer.transform(x_test.copy())
+
+    # Serialize to JSON string
+    json_str = normalizer.to_json()
+
+    # Verify it's valid JSON
+    parsed = json.loads(json_str)
+    assert parsed["class"] == "MultivariateNormalizer"
+
+    # Deserialize from JSON
+    restored_normalizer = MultivariateNormalizer.from_json(json_str)
+
+    # Transform with restored normalizer
+    restored_result = restored_normalizer.transform(x_test.copy())
+
+    # Results should be identical
+    assert np.allclose(original_result, restored_result)
+
+
+def test_mvnorm_serialization_empty_normalizer():
+    """Test serialization of unfitted normalizer."""
+    normalizer = MultivariateNormalizer(n_dim=3)
+
+    # Should be able to serialize even if not fitted
+    data = normalizer.to_dict()
+    restored = MultivariateNormalizer.from_dict(data)
+
+    # State should be preserved
+    assert restored.n == 0
+    assert np.allclose(restored.muhat, np.zeros(3))
+    assert np.allclose(restored._M, np.zeros((3, 3)))
+    assert restored.n_dim == 3
+
+
+def test_mvnorm_deserialization_wrong_class():
+    """Test that deserializing wrong class raises error."""
+    data = {
+        "version": "1.0",
+        "class": "WrongClass",
+        "config": {"n_dim": 3},
+        "state": {"n": 0, "muhat": "", "_M": ""},
+    }
+
+    with pytest.raises(ValueError, match="Cannot deserialize"):
+        MultivariateNormalizer.from_dict(data)
+
+
+def test_mvnorm_serialization_preserves_covariance(correlated_data):
+    """Test that serialization preserves covariance structure."""
+    X, n_dim, _, _ = correlated_data
+    normalizer = MultivariateNormalizer(n_dim=n_dim)
+    for x in X:
+        normalizer.partial_fit(x)
+
+    # Get original covariance estimate
+    original_cov = normalizer.Sigmahat
+
+    # Serialize and deserialize
+    data = normalizer.to_dict()
+    restored = MultivariateNormalizer.from_dict(data)
+
+    # Covariance should be preserved
+    restored_cov = restored.Sigmahat
+    assert np.allclose(original_cov, restored_cov)
+
+    # Test that decorrelation still works
+    x_test = X[0]
+    original_transform = normalizer.transform(x_test.copy())
+    restored_transform = restored.transform(x_test.copy())
+    assert np.allclose(original_transform, restored_transform)

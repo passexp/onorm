@@ -1,3 +1,7 @@
+import base64
+import json
+from typing import Any, Dict
+
 import numpy as np
 
 from .normalization_base import Normalizer
@@ -198,3 +202,74 @@ class StandardScaler(Normalizer):
         self.n = 0
         self.mean = np.zeros(self.n_dim)
         self.M = np.zeros(self.n_dim)  # Welford's M for variance calculation
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Serialize the scaler state to a dictionary.
+
+        Returns
+        -------
+        dict
+            Dictionary with JSON-serializable metadata and base64-encoded arrays.
+        """
+        return {
+            "version": "1.0",
+            "class": "StandardScaler",
+            "config": {
+                "n_dim": self.n_dim,
+                "with_mean": self.with_mean,
+                "with_std": self.with_std,
+                "ddof": self.ddof,
+            },
+            "state": {
+                "n": self.n,
+                "mean": base64.b64encode(self.mean.tobytes()).decode("ascii"),
+                "M": base64.b64encode(self.M.tobytes()).decode("ascii"),
+            },
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "StandardScaler":
+        """
+        Deserialize a scaler from a dictionary.
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary created by to_dict().
+
+        Returns
+        -------
+        StandardScaler
+            Deserialized scaler instance.
+        """
+        if data.get("class") != "StandardScaler":
+            raise ValueError(
+                f"Cannot deserialize {data.get('class')} as StandardScaler"
+            )
+
+        config = data["config"]
+        instance = cls(
+            n_dim=config["n_dim"],
+            with_mean=config["with_mean"],
+            with_std=config["with_std"],
+            ddof=config["ddof"],
+        )
+
+        state = data["state"]
+        instance.n = state["n"]
+        instance.mean = np.frombuffer(
+            base64.b64decode(state["mean"]), dtype=np.float64
+        )
+        instance.M = np.frombuffer(base64.b64decode(state["M"]), dtype=np.float64)
+
+        return instance
+
+    def to_json(self) -> str:
+        """Serialize the scaler to a JSON string."""
+        return json.dumps(self.to_dict(), indent=2)
+
+    @classmethod
+    def from_json(cls, json_str: str) -> "StandardScaler":
+        """Deserialize a scaler from a JSON string."""
+        return cls.from_dict(json.loads(json_str))

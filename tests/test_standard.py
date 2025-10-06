@@ -1,3 +1,5 @@
+import json
+
 import numpy as np
 import pytest
 from numpy.random import default_rng
@@ -431,3 +433,138 @@ def test_standard_negative_values(rng):
 
     assert np.all(np.isfinite(x_norm)), "Should handle negative values"
     assert x_norm.shape == (n_dim,)
+
+
+def test_standard_serialization_to_dict(fitted_scaler):
+    """Test serialization to dictionary."""
+    data = fitted_scaler.to_dict()
+
+    # Check structure
+    assert "version" in data
+    assert "class" in data
+    assert "config" in data
+    assert "state" in data
+
+    # Check values
+    assert data["version"] == "1.0"
+    assert data["class"] == "StandardScaler"
+    assert data["config"]["n_dim"] == fitted_scaler.n_dim
+    assert data["config"]["with_mean"] == fitted_scaler.with_mean
+    assert data["config"]["with_std"] == fitted_scaler.with_std
+    assert data["config"]["ddof"] == fitted_scaler.ddof
+    assert "n" in data["state"]
+    assert "mean" in data["state"]
+    assert "M" in data["state"]
+
+    # Check that state arrays are base64 encoded strings
+    assert isinstance(data["state"]["mean"], str)
+    assert isinstance(data["state"]["M"], str)
+    assert isinstance(data["state"]["n"], int)
+
+
+def test_standard_serialization_roundtrip(fitted_scaler, sample_data):
+    """Test that serialization and deserialization preserves state."""
+    X, _ = sample_data
+
+    # Transform with original scaler
+    x_test = X[-1]
+    original_result = fitted_scaler.transform(x_test.copy())
+
+    # Serialize and deserialize
+    data = fitted_scaler.to_dict()
+    restored_scaler = StandardScaler.from_dict(data)
+
+    # Transform with restored scaler
+    restored_result = restored_scaler.transform(x_test.copy())
+
+    # Results should be identical
+    assert np.allclose(original_result, restored_result)
+
+    # State should be identical
+    assert np.allclose(fitted_scaler.mean, restored_scaler.mean)
+    assert np.allclose(fitted_scaler.M, restored_scaler.M)
+    assert fitted_scaler.n == restored_scaler.n
+    assert fitted_scaler.n_dim == restored_scaler.n_dim
+    assert fitted_scaler.with_mean == restored_scaler.with_mean
+    assert fitted_scaler.with_std == restored_scaler.with_std
+    assert fitted_scaler.ddof == restored_scaler.ddof
+
+
+def test_standard_json_serialization(fitted_scaler, sample_data):
+    """Test JSON string serialization."""
+    X, _ = sample_data
+
+    # Transform with original scaler
+    x_test = X[-1]
+    original_result = fitted_scaler.transform(x_test.copy())
+
+    # Serialize to JSON string
+    json_str = fitted_scaler.to_json()
+
+    # Verify it's valid JSON
+    parsed = json.loads(json_str)
+    assert parsed["class"] == "StandardScaler"
+
+    # Deserialize from JSON
+    restored_scaler = StandardScaler.from_json(json_str)
+
+    # Transform with restored scaler
+    restored_result = restored_scaler.transform(x_test.copy())
+
+    # Results should be identical
+    assert np.allclose(original_result, restored_result)
+
+
+def test_standard_serialization_empty_scaler():
+    """Test serialization of unfitted scaler."""
+    scaler = StandardScaler(n_dim=3)
+
+    # Should be able to serialize even if not fitted
+    data = scaler.to_dict()
+    restored = StandardScaler.from_dict(data)
+
+    # State should be preserved
+    assert restored.n == 0
+    assert np.allclose(restored.mean, np.zeros(3))
+    assert np.allclose(restored.M, np.zeros(3))
+    assert restored.n_dim == 3
+
+
+def test_standard_deserialization_wrong_class():
+    """Test that deserializing wrong class raises error."""
+    data = {
+        "version": "1.0",
+        "class": "WrongClass",
+        "config": {"n_dim": 3, "with_mean": True, "with_std": True, "ddof": 1},
+        "state": {"n": 0, "mean": "", "M": ""},
+    }
+
+    with pytest.raises(ValueError, match="Cannot deserialize"):
+        StandardScaler.from_dict(data)
+
+
+def test_standard_serialization_with_options(rng):
+    """Test serialization preserves with_mean and with_std options."""
+    n_dim = 3
+    scaler = StandardScaler(n_dim=n_dim, with_mean=False, with_std=True, ddof=0)
+
+    # Fit with data
+    X = rng.normal(loc=10, scale=5, size=(50, n_dim))
+    for x in X:
+        scaler.partial_fit(x)
+
+    # Serialize and deserialize
+    data = scaler.to_dict()
+    restored = StandardScaler.from_dict(data)
+
+    # Test that options are preserved
+    assert restored.with_mean == False
+    assert restored.with_std == True
+    assert restored.ddof == 0
+
+    # Test that transformation matches
+    x_test = rng.normal(loc=10, scale=5, size=n_dim)
+    original = scaler.transform(x_test.copy())
+    restored_result = restored.transform(x_test.copy())
+
+    assert np.allclose(original, restored_result)

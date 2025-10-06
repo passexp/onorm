@@ -24,7 +24,7 @@ from onorm import (
     StandardScaler,
     Winsorizer,
 )
-from plotnine import aes, geom_line, ggplot, theme_minimal
+from plotnine import aes, geom_line, ggplot, theme_minimal, theme
 
 
 @dataclass
@@ -68,10 +68,10 @@ class PerformanceBenchmark:
             "StandardScaler": StandardScaler(n_dim=n_dim),
             "MinMaxScaler": MinMaxScaler(n_dim=n_dim),
             "MultivariateNormalizer": MultivariateNormalizer(n_dim=n_dim),
-            "Winsorizer(5-95%)": Winsorizer(n_dim=n_dim, clip_q=(0.05, 0.95)),
+            "Winsorizer(5-95%)": Winsorizer(n_dim=n_dim, clip_q=(0.05, 0.95), max_centroids=100),
             # Pipelines
-            "Standard>MinMax": Pipeline([StandardScaler(n_dim=n_dim), MinMaxScaler(n_dim=n_dim)]),
-            "Standard>Multivariate": Pipeline(
+            "Standard»MinMax": Pipeline([StandardScaler(n_dim=n_dim), MinMaxScaler(n_dim=n_dim)]),
+            "Standard»Multivariate": Pipeline(
                 [StandardScaler(n_dim=n_dim), MultivariateNormalizer(n_dim=n_dim)]
             ),
         }
@@ -244,7 +244,7 @@ class PerformanceBenchmark:
             ggplot(df_scaling, aes(x="n_samples", y="time_us", color="normalizer"))
             + geom_line(size=1.5)
             + theme_minimal()
-            + theme_minimal()
+            + theme(legend_position="bottom")
         )
         plot1.save(f"{output_dir}/scaling_sample_size.png", width=12, height=6, dpi=150)
 
@@ -262,6 +262,7 @@ class PerformanceBenchmark:
             ggplot(df_dim, aes(x="n_dim", y="time_us", color="normalizer"))
             + geom_line(size=1.5)
             + theme_minimal()
+            + theme(legend_position="bottom")
         )
         plot2.save(f"{output_dir}/scaling_dimensionality.png", width=12, height=6, dpi=150)
 
