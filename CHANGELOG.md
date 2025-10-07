@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2025-10-06
+
+### Added
+- **QuantileTransformer** normalizer for CDF-based transformation
+  - Uses TDigest for efficient online marginal CDF estimation
+  - Supports two output modes: `uniform` (maps to [0,1]) and `normal` (standard normal)
+  - Handles arbitrary distributions (skewed, heavy-tailed, multimodal)
+  - Fully serializable with JSON (no pickle)
+  - 16 comprehensive tests with 100% coverage
+- **Enhanced README badges**
+  - Added PyPI status badge (Beta)
+  - Added downloads badge (pepy.tech)
+  - Fixed PyPI version badge to link to package page
+  - Added Python versions, License, Documentation, and Code style badges
+- **PyPI classifiers** for better discoverability
+  - Development Status: Beta
+  - Topic classifiers for scientific computing
+  - Keywords: normalization, standardization, online-learning, streaming-data
+
+### Changed
+- Updated Pipeline class to support QuantileTransformer in serialization
+- Updated feature list to include serialization methods
+
+### Fixed
+- Type error in benchmark_performance.py (numpy scalar to Python float conversion)
+
+### Performance
+- QuantileTransformer maintains O(k) memory where k = max_centroids (typically 1000)
+- Efficient CDF lookup with TDigest data structure
+
+### Documentation
+- Added comprehensive docstrings for QuantileTransformer with examples
+- Updated README with new normalizer and serialization features
+
 ## [0.2.0] - 2025-10-06
 
 ### Added
@@ -52,5 +86,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Online/incremental learning support for all normalizers
 - Comprehensive test suite with 66 tests
 
+[0.3.0]: https://github.com/passexp/onorm/releases/tag/v0.3.0
 [0.2.0]: https://github.com/passexp/onorm/releases/tag/v0.2.0
 [0.1.0]: https://github.com/passexp/onorm/releases/tag/v0.1.0

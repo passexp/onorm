@@ -23,6 +23,7 @@ pip install onorm
 - **StandardScaler**: Online standardization (z-score normalization)
 - **MinMaxScaler**: Online min-max scaling to [0, 1]
 - **Winsorizer**: Online outlier clipping using quantiles
+- **QuantileTransformer**: Transform features to uniform or normal distribution via marginal CDFs
 - **MultivariateNormalizer**: Online decorrelation and standardization
 - **Pipeline**: Chain multiple normalizers sequentially
 
@@ -32,6 +33,7 @@ All normalizers support:
 - Transformation via `transform()`
 - Combined operation via `partial_fit_transform()`
 - State reset via `reset()`
+- Serialization via `to_dict()` / `from_dict()` and `to_json()` / `from_json()`
 
 ## Usage Example
 
@@ -139,3 +141,78 @@ df_long = pd.melt(df, id_vars=["Sample"], var_name="Method", value_name="Estimat
 - **Flexibility**: Mix and match normalizers to build custom preprocessing pipelines
 
 For more details, see the [documentation](https://passexp.github.io/onorm/).
+
+## QuantileTransformer: Handling Non-Normal Distributions
+
+The `QuantileTransformer` uses incremental quantile estimation to transform features to a uniform [0,1] or normal distribution, making it ideal for skewed or heavy-tailed data streams.
+
+
+```python
+from onorm import QuantileTransformer
+
+# Generate skewed data (log-normal distribution)
+X_skewed = rng.lognormal(mean=0, sigma=1, size=(500, 3))
+
+# Create transformer to map to uniform distribution
+qt_uniform = QuantileTransformer(n_dim=3, output_distribution="uniform")
+
+# Create transformer to map to normal distribution
+qt_normal = QuantileTransformer(n_dim=3, output_distribution="normal")
+
+# Process stream
+X_uniform = []
+X_normal = []
+
+for x in X_skewed:
+    qt_uniform.partial_fit(x)
+    qt_normal.partial_fit(x)
+    X_uniform.append(qt_uniform.transform(x.copy()))
+    X_normal.append(qt_normal.transform(x.copy()))
+
+X_uniform = np.array(X_uniform)
+X_normal = np.array(X_normal)
+
+print(f"Original data - Mean: {X_skewed[:, 0].mean():.2f}, Std: {X_skewed[:, 0].std():.2f}")
+print(f"Uniform transform - Mean: {X_uniform[:, 0].mean():.2f}, Std: {X_uniform[:, 0].std():.2f}")
+print(f"Normal transform - Mean: {X_normal[:, 0].mean():.2f}, Std: {X_normal[:, 0].std():.2f}")
+```
+
+    Original data - Mean: 1.70, Std: 2.14
+    Uniform transform - Mean: 0.48, Std: 0.29
+    Normal transform - Mean: -0.08, Std: 1.68
+
+
+## Serialization: Save and Load Normalizer State
+
+All normalizers support efficient serialization to JSON, making it easy to save trained models and deploy them in production systems.
+
+
+```python
+# Train a pipeline on streaming data
+trained_pipeline = Pipeline([
+    Winsorizer(n_dim=3, clip_q=(0.05, 0.95)),
+    StandardScaler(n_dim=3)
+])
+
+training_data = rng.normal(loc=5, scale=2, size=(100, 3))
+for x in training_data:
+    trained_pipeline.partial_fit(x)
+
+# Serialize to JSON
+json_state = trained_pipeline.to_json()
+print(f"Serialized size: {len(json_state)} bytes")
+
+# Later: deserialize and use
+restored_pipeline = Pipeline.from_json(json_state)
+
+# Verify it produces the same results
+test_point = rng.normal(loc=5, scale=2, size=3)
+original_result = trained_pipeline.transform(test_point.copy())
+restored_result = restored_pipeline.transform(test_point.copy())
+
+print(f"Results match: {np.allclose(original_result, restored_result)}")
+```
+
+    Serialized size: 33191 bytes
+    Results match: True
+
