@@ -3,7 +3,14 @@ import json
 import numpy as np
 import pytest
 from numpy.random import default_rng
-from onorm import MinMaxScaler, MultivariateNormalizer, Pipeline, StandardScaler, Winsorizer
+from onorm import (
+    MinMaxScaler,
+    MultivariateNormalizer,
+    Pipeline,
+    QuantileTransformer,
+    StandardScaler,
+    Winsorizer,
+)
 
 
 @pytest.fixture
@@ -455,3 +462,39 @@ def test_pipeline_serialization_all_normalizers(rng):
     assert isinstance(restored.normalizers[1], StandardScaler)
     assert isinstance(restored.normalizers[2], MultivariateNormalizer)
     assert isinstance(restored.normalizers[3], MinMaxScaler)
+
+
+def test_pipeline_with_quantile_transformer(rng):
+    """Test pipeline with QuantileTransformer."""
+    n_dim = 3
+    pipeline = Pipeline(
+        [
+            Winsorizer(n_dim=n_dim, clip_q=(0.05, 0.95)),
+            QuantileTransformer(n_dim=n_dim, output_distribution="uniform"),
+        ]
+    )
+
+    # Fit with skewed data
+    X = rng.exponential(scale=2.0, size=(100, n_dim))
+    for x in X:
+        pipeline.partial_fit(x)
+
+    # Transform should clip outliers then map to uniform
+    x_test = rng.exponential(scale=2.0, size=n_dim)
+    result = pipeline.transform(x_test.copy())
+
+    # Should be in [0, 1] after QuantileTransformer
+    assert np.all(result >= 0.0)
+    assert np.all(result <= 1.0)
+
+    # Test serialization
+    data = pipeline.to_dict()
+    restored = Pipeline.from_dict(data)
+
+    assert len(restored.normalizers) == 2
+    assert isinstance(restored.normalizers[0], Winsorizer)
+    assert isinstance(restored.normalizers[1], QuantileTransformer)
+
+    # Should produce same results
+    restored_result = restored.transform(x_test.copy())
+    assert np.allclose(result, restored_result)

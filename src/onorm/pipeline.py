@@ -166,13 +166,20 @@ class Pipeline(Normalizer):
             raise ValueError(f"Cannot deserialize {data.get('class')} as Pipeline")
 
         # Import normalizer classes (avoid circular imports)
-        from . import MinMaxScaler, MultivariateNormalizer, StandardScaler, Winsorizer
+        from . import (
+            MinMaxScaler,
+            MultivariateNormalizer,
+            QuantileTransformer,
+            StandardScaler,
+            Winsorizer,
+        )
 
         class_map = {
             "MinMaxScaler": MinMaxScaler,
             "StandardScaler": StandardScaler,
             "MultivariateNormalizer": MultivariateNormalizer,
             "Winsorizer": Winsorizer,
+            "QuantileTransformer": QuantileTransformer,
             "Pipeline": cls,
         }
 
