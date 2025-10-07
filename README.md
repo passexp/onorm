@@ -1,7 +1,9 @@
 # Online Normalization (onorm)
 
 [![PyPI version](https://img.shields.io/pypi/v/onorm)](https://pypi.org/project/onorm/)
+[![PyPI status](https://img.shields.io/pypi/status/onorm)](https://pypi.org/project/onorm/)
 [![Python versions](https://img.shields.io/pypi/pyversions/onorm)](https://pypi.org/project/onorm/)
+[![Downloads](https://static.pepy.tech/badge/onorm)](https://pepy.tech/project/onorm)
 [![License](https://img.shields.io/pypi/l/onorm)](https://github.com/passexp/onorm/blob/main/LICENSE)
 [![CI](https://github.com/ddimmery/onorm/actions/workflows/ci.yml/badge.svg)](https://github.com/ddimmery/onorm/actions/workflows/ci.yml)
 [![Documentation](https://img.shields.io/badge/docs-mkdocs-blue)](https://passexp.github.io/onorm/)

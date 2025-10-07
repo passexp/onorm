@@ -1,8 +1,8 @@
 Online Normalization (onorm)
 ============================
 
-|PyPI version| |Python versions| |License| |CI| |Documentation| |Code
-style: ruff| |Contributor Covenant|
+|PyPI version| |PyPI status| |Python versions| |Downloads| |License|
+|CI| |Documentation| |Code style: ruff| |Contributor Covenant|
 
 ``onorm`` provides online (incremental) normalization algorithms for
 streaming data. These normalizers update their statistics incrementally
@@ -151,8 +151,12 @@ For more details, see the
 
 .. |PyPI version| image:: https://img.shields.io/pypi/v/onorm
    :target: https://pypi.org/project/onorm/
+.. |PyPI status| image:: https://img.shields.io/pypi/status/onorm
+   :target: https://pypi.org/project/onorm/
 .. |Python versions| image:: https://img.shields.io/pypi/pyversions/onorm
    :target: https://pypi.org/project/onorm/
+.. |Downloads| image:: https://static.pepy.tech/badge/onorm
+   :target: https://pepy.tech/project/onorm
 .. |License| image:: https://img.shields.io/pypi/l/onorm
    :target: https://github.com/passexp/onorm/blob/main/LICENSE
 .. |CI| image:: https://github.com/ddimmery/onorm/actions/workflows/ci.yml/badge.svg

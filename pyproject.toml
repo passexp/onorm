@@ -7,6 +7,17 @@ license = "Apache-2.0"
 readme = "README.md"
 homepage = "https://passexp.github.io/onorm/"
 repository = "https://github.com/passexp/onorm"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+keywords = ["normalization", "standardization", "online-learning", "streaming-data", "data-preprocessing"]
 
 [tool.poetry.dependencies]
 python = "^3.12"
