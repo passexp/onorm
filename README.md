@@ -1,8 +1,12 @@
 # Online Normalization (onorm)
 
+[![PyPI version](https://img.shields.io/pypi/v/onorm)](https://pypi.org/project/onorm/)
+[![Python versions](https://img.shields.io/pypi/pyversions/onorm)](https://pypi.org/project/onorm/)
+[![License](https://img.shields.io/pypi/l/onorm)](https://github.com/passexp/onorm/blob/main/LICENSE)
+[![CI](https://github.com/ddimmery/onorm/actions/workflows/ci.yml/badge.svg)](https://github.com/ddimmery/onorm/actions/workflows/ci.yml)
+[![Documentation](https://img.shields.io/badge/docs-mkdocs-blue)](https://passexp.github.io/onorm/)
+[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](code-of-conduct.md)
-[![ci](https://github.com/ddimmery/onorm/actions/workflows/ci.yml/badge.svg)](https://github.com/ddimmery/onorm/actions/workflows/ci.yml)
-![PyPI](https://img.shields.io/pypi/v/onorm)
 
 `onorm` provides online (incremental) normalization algorithms for streaming data. These normalizers update their statistics incrementally without storing historical data, making them suitable for large-scale or real-time applications.
 

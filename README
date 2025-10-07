@@ -1,7 +1,8 @@
 Online Normalization (onorm)
 ============================
 
-|Contributor Covenant| |ci| |PyPI|
+|PyPI version| |Python versions| |License| |CI| |Documentation| |Code
+style: ruff| |Contributor Covenant|
 
 ``onorm`` provides online (incremental) normalization algorithms for
 streaming data. These normalizers update their statistics incrementally
@@ -148,8 +149,17 @@ Key Takeaways
 For more details, see the
 `documentation <https://passexp.github.io/onorm/>`__.
 
+.. |PyPI version| image:: https://img.shields.io/pypi/v/onorm
+   :target: https://pypi.org/project/onorm/
+.. |Python versions| image:: https://img.shields.io/pypi/pyversions/onorm
+   :target: https://pypi.org/project/onorm/
+.. |License| image:: https://img.shields.io/pypi/l/onorm
+   :target: https://github.com/passexp/onorm/blob/main/LICENSE
+.. |CI| image:: https://github.com/ddimmery/onorm/actions/workflows/ci.yml/badge.svg
+   :target: https://github.com/ddimmery/onorm/actions/workflows/ci.yml
+.. |Documentation| image:: https://img.shields.io/badge/docs-mkdocs-blue
+   :target: https://passexp.github.io/onorm/
+.. |Code style: ruff| image:: https://img.shields.io/badge/code%20style-ruff-000000.svg
+   :target: https://github.com/astral-sh/ruff
 .. |Contributor Covenant| image:: https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg
    :target: code-of-conduct.md
-.. |ci| image:: https://github.com/ddimmery/onorm/actions/workflows/ci.yml/badge.svg
-   :target: https://github.com/ddimmery/onorm/actions/workflows/ci.yml
-.. |PyPI| image:: https://img.shields.io/pypi/v/onorm
